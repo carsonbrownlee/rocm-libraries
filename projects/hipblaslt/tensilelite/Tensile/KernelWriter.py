@@ -3544,7 +3544,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["ScheduleIterAlg"] == 3 or kernel["ScheduleIterAlg"] == 2:
       self.states.numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       if kernel["ProblemType"]["DataType"].isComplex(): self.states.numMfmaPerIter *= 4
-      elif kernel["UseF32XEmulation"]: self.states.numMfmaPerIter *= 3
+      elif kernel["UseF32XEmulation"] and not kernel["F32XEmulationFast"]: self.states.numMfmaPerIter *= 3
 
     # NamedTuple is immutable
     class intermediateTPValues(NamedTuple):

@@ -3264,7 +3264,7 @@ std::vector<std::shared_ptr<TensileLite::ContractionSolution>>
         = getSolutions(prob, library, hardware, data->problem, enableEpilogue, requestedAlgoCount);
 
     // when there is no solution for xfloat32, fallback comput_type to fp32
-    if(solutions.size() == 0 && prob.compute_type == rocblaslt_compute_f32_fast_xf32)
+    if(0)//solutions.size() == 0 && prob.compute_type == rocblaslt_compute_f32_fast_xf32)
     {
         log_api(__func__, "no solutions found, try to fallback");
         data->problem.setF32XdlMathOp(rocisa::DataType::Float);
@@ -3312,7 +3312,7 @@ rocblaslt_status getBestSolutions(RocblasltContractionProblem const& prob,
         = getSolutions(prob, library, hardware, data->problem, enableEpilogue, requestedAlgoCount);
 
     // when there is no solution for xfloat32, fallback comput_type to fp32
-    if(solutions.size() == 0 && prob.compute_type == rocblaslt_compute_f32_fast_xf32)
+    if(0)//solutions.size() == 0 && prob.compute_type == rocblaslt_compute_f32_fast_xf32)
     {
         log_api(__func__, "no xf32 solutions found, try to fallback fp32");
         data->problem.setF32XdlMathOp(rocisa::DataType::Float);

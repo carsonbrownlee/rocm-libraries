@@ -299,32 +299,36 @@ class LocalReadMFMA(LocalRead):
                                     v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx))
                                     v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx))
 
-                                    packCode.add(VCvtPkF32toBF16(dst=vgpr(tmpvgprHI[tmpvgprIDx]), src0=v0, src1=v1))
-
-                                    if kernel["UseDot2F32XEmulation"]:
-                                        packCode.add(VDot2CF32BF16(dst=v0, src0=hex(0x8000bf80), src1=vgpr(tmpvgprHI[tmpvgprIDx])))
-                                        packCode.add(VDot2CF32BF16(dst=v1, src0=hex(0xbf800000), src1=vgpr(tmpvgprHI[tmpvgprIDx])))
+                                    if (kernel["F32XEmulationFast"]):
+                                        packCode.add(VCvtPkF32toBF16(dst=v0, src0=v0, src1=v2))
+                                        packCode.add(VCvtPkF32toBF16(dst=v1, src0=v1, src1=v3))
                                     else:
-                                        packCode.add(PVCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx])))
-                                        packCode.add(VSubF32(dst=v0, src0=v0, src1=vgpr(tmpvgpr[0])))
-                                        packCode.add(VCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]), vgprMask=None, vi=1))
-                                        packCode.add(VSubF32(dst=v1, src0=v1, src1=vgpr(tmpvgpr[0])))
+                                        packCode.add(VCvtPkF32toBF16(dst=vgpr(tmpvgprHI[tmpvgprIDx]), src0=v0, src1=v1))
 
-                                    packCode.add(VCvtPkF32toBF16(dst=vgpr(tmpvgprHI[tmpvgprIDx]+1), src0=v2, src1=v3))
+                                        if kernel["UseDot2F32XEmulation"]:
+                                            packCode.add(VDot2CF32BF16(dst=v0, src0=hex(0x8000bf80), src1=vgpr(tmpvgprHI[tmpvgprIDx])))
+                                            packCode.add(VDot2CF32BF16(dst=v1, src0=hex(0xbf800000), src1=vgpr(tmpvgprHI[tmpvgprIDx])))
+                                        else:
+                                            packCode.add(PVCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx])))
+                                            packCode.add(VSubF32(dst=v0, src0=v0, src1=vgpr(tmpvgpr[0])))
+                                            packCode.add(VCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]), vgprMask=None, vi=1))
+                                            packCode.add(VSubF32(dst=v1, src0=v1, src1=vgpr(tmpvgpr[0])))
 
-                                    if kernel["UseDot2F32XEmulation"]:
-                                        packCode.add(VDot2CF32BF16(dst=v2, src0=hex(0x8000bf80), src1=vgpr(tmpvgprHI[tmpvgprIDx]+1)))
-                                    else:
-                                        packCode.add(PVCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]+1)))
-                                        packCode.add(VSubF32(dst=v2, src0=v2, src1=vgpr(tmpvgpr[0])))
+                                        packCode.add(VCvtPkF32toBF16(dst=vgpr(tmpvgprHI[tmpvgprIDx]+1), src0=v2, src1=v3))
 
-                                    # We use cvt+sub pair since dot2 requires adding 4 wait states.
-                                    packCode.add(VCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]+1), vgprMask=None, vi=1))
-                                    packCode.add(VSubF32(dst=v3, src0=v3, src1=vgpr(tmpvgpr[0])))
+                                        if kernel["UseDot2F32XEmulation"]:
+                                            packCode.add(VDot2CF32BF16(dst=v2, src0=hex(0x8000bf80), src1=vgpr(tmpvgprHI[tmpvgprIDx]+1)))
+                                        else:
+                                            packCode.add(PVCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]+1)))
+                                            packCode.add(VSubF32(dst=v2, src0=v2, src1=vgpr(tmpvgpr[0])))
 
-                                    if kernel["UseDot2F32XEmulation"]:
-                                        packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
-                                        packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
+                                        # We use cvt+sub pair since dot2 requires adding 4 wait states.
+                                        packCode.add(VCvtBF16toFP32(dst=vgpr(tmpvgpr[0]), src=vgpr(tmpvgprHI[tmpvgprIDx]+1), vgprMask=None, vi=1))
+                                        packCode.add(VSubF32(dst=v3, src0=v3, src1=vgpr(tmpvgpr[0])))
+
+                                        if kernel["UseDot2F32XEmulation"]:
+                                            packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
+                                            packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
 
                                     for i in range(numTmpForCVTSubTF32):
                                         writer.vgprPool.checkIn(tmpvgpr[i])
