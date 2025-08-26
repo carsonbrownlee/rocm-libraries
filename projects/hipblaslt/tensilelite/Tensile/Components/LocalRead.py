@@ -299,7 +299,7 @@ class LocalReadMFMA(LocalRead):
                                     v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx))
                                     v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx))
 
-                                    if (kernel["F32XEmulationFast"]):
+                                    if False:#(kernel["F32XEmulationFast"]):
                                         packCode.add(VCvtPkF32toBF16(dst=v0, src0=v0, src1=v2))
                                         packCode.add(VCvtPkF32toBF16(dst=v1, src0=v1, src1=v3))
                                     else:
