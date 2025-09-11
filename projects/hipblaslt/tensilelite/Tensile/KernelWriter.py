@@ -220,6 +220,7 @@ class StateValues:
   startVgprAddressDbg: int               = -1
   startVgprAlphaTmp: int                 = -1
   startVgprSerial: int                   = -1
+  startVgprCvt: int                      = -1
 
   numSgprSizesSum: int                   = 0
   numSgprSizesFree: int                  = 0
@@ -950,15 +951,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
         scheduleTF32Emu = kernel["UseF32XEmulation"]
         if scheduleTF32Emu:
           # 26 is the instruction count for the TF32 emulation sequence in LocalRead.py
-          instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
-          instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
+          #Carson Debug:
+          # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
+          # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
+          instPerPackA = 32
+          instPerPackB = 32
+          print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
+            print("packAItems itr: " + str(len(packAItems)))
             for n in range(instPerPackA):
               if packAItems:
                 packItems.append(packAItems.pop(0))
             for n in range(instPerPackB):
               if packBItems:
                 packItems.append(packBItems.pop(0))
+          print("packAItems end: " + str(len(packAItems)))
         else:
           while packAItems:
             if kernel["ConvertAfterDS"] and kernel["ProblemType"]["DataTypeA"].isAnyFloat8():
@@ -1116,6 +1123,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         return numLoops, newItemCounter
 
       itemCounter = 0
+      mfmaCounter = 0
       for i in range(numMfmaPerIter):
         mfmaIndex = iteration * numMfmaPerIter + i
         insertInst = countInstruction(iterCode)
@@ -1422,11 +1430,26 @@ class KernelWriter(metaclass=abc.ABCMeta):
             iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
 
           if not schedulePackConsiderMetadata:
-              # we put 2 pack in each mfma
-              for j in range(instPerPackA):
-                if packItems:
-                  iterCode.add(packItems.pop(0))
-                  curPackIdx += 1
+              # Carson Debug
+              if kernel["UseF32XEmulation"]:
+                print("macIterItems: " + str(len(macIterItems)))
+                print("instPerPackA: " + str(instPerPackA))
+                numPacks = instPerPackA
+                # numPacks = 8
+                # if len(macIterItems) > 11:
+                #   numPacks = 16
+                # else:
+                #   numPacks = instPerPackA * 2 - 16
+                for j in range(numPacks):
+                  if packItems:
+                    iterCode.add(packItems.pop(0))
+                    curPackIdx += 1
+              else:
+                # we put 2 pack in each mfma
+                for j in range(instPerPackA):
+                  if packItems:
+                    iterCode.add(packItems.pop(0))
+                    curPackIdx += 1
               if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
                 for j in range(ceil(instPerPackM)):
                   if packItems:
@@ -1449,6 +1472,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
                 numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
+                #numDummy = 0 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
@@ -4471,6 +4495,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.states.m.startVgprG2L = self.states.m.startVgprValu
           vgprIdx = self.states.m.startVgprValu  \
               + max(self.states.m.numVgprValu + numVgprValuPackMetadata, self.states.m.numVgprG2LAllocated)
+
+    if kernel["UseF32XEmulation"]:
+      #align 64 bit
+      vgprIdx = int((vgprIdx + 1) / 2) * 2
+      self.states.startVgprCvt = vgprIdx
+      vgprIdx += 9 # for vgpr serial id
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
