@@ -296,6 +296,26 @@ class LocalReadMFMA(LocalRead):
                                 print(vectorWidthB)
                                 print(numVectorsPerTile)
                                 print(numReadsPerVector)
+
+                                def pack4HiBits(tct, index):
+                                    valOffset = baseValuiIdx + index
+                                    vgprCvtOffset = 0 + index/2 + baseValuiIdx
+                                    if tct == "B":
+                                        vgprCvtOffset = 4 + index/2 + baseValuiIdx
+                                    v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset))
+                                    v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset))
+                                    v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset))
+                                    v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset))
+                                    src0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset), 2)
+                                    src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
+                                    dst0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
+                                    dst1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
+                                    if index % 8 == 0:
+                                        packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
+                                        packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
+                                    packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
+                                    packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3))
+
                                 if valuiIdx == 0 and tc == 'A':
                                     print("pack header")
                                     # tmpvgprIDx = 0
@@ -303,7 +323,10 @@ class LocalReadMFMA(LocalRead):
                                         vw = vectorWidthA
                                         if tct == "B":
                                             vw = vectorWidthB
-                                        for eIdxt in range(vw):
+                                        eIdxt = 0
+                                        pack4HiBits(tct, 0)
+                                        pack4HiBits(tct, 4)
+                                        #for eIdxt in range(vw):
                                             # carson status: currently failing for values +8-12
                                             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
@@ -314,34 +337,38 @@ class LocalReadMFMA(LocalRead):
                                             #     dstfp32 = tmpvgprFP32B
                                             # tmpvgprFP32A.append(writer.vgprPool.checkOutAligned(2, 2))
                                             # tmpvgprFP32A.append(writer.vgprPool.checkOutAligned(2, 2))
-                                            valOffset = baseValuiIdx + 8 * eIdxt
-                                            vgprCvtOffset = 0 + 8 * eIdxt
-                                            if tct == "B":
-                                                vgprCvtOffset = 4 + 8 * eIdxt
-                                            v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset))
-                                            v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset))
-                                            v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset))
-                                            v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset))
-                                            v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tct, bufferIdx, iui, valOffset))
-                                            v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tct, bufferIdx, iui, valOffset))
-                                            v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tct, bufferIdx, iui, valOffset))
-                                            v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tct, bufferIdx, iui, valOffset))
-                                            src0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset), 2)
-                                            src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
-                                            packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
-                                            packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
-                                            packCode.add(VCvtPkF32toBF16(dst=v0, src0=v0, src1=v1))
-                                            packCode.add(VCvtPkF32toBF16(dst=v1, src0=v2, src1=v3))
-                                            packCode.add(VCvtPkF32toBF16(dst=v2, src0=v4, src1=v5))
-                                            packCode.add(VCvtPkF32toBF16(dst=v3, src0=v6, src1=v7))
+                                        # valOffset = baseValuiIdx + 8 * eIdxt
+                                        # vgprCvtOffset = 0 + 8 * eIdxt
+                                        # if tct == "B":
+                                        #     vgprCvtOffset = 4 + 8 * eIdxt
+                                        # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset))
+                                        # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset))
+                                        # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset))
+                                        # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset))
+                                        # v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tct, bufferIdx, iui, valOffset))
+                                        # v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tct, bufferIdx, iui, valOffset))
+                                        # v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tct, bufferIdx, iui, valOffset))
+                                        # v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tct, bufferIdx, iui, valOffset))
+                                        # src0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset), 2)
+                                        # src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
+                                        # packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
+                                        # packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
+                                        # packCode.add(VCvtPkF32toBF16(dst=v0, src0=v0, src1=v1))
+                                        # packCode.add(VCvtPkF32toBF16(dst=v1, src0=v2, src1=v3))
+                                        # packCode.add(VCvtPkF32toBF16(dst=v2, src0=v4, src1=v5))
+                                        # packCode.add(VCvtPkF32toBF16(dst=v3, src0=v6, src1=v7))
                                 # if valuiIdx % 4 == 0:
                                 #     tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
 
                                 if valuiIdx % 4 == 0:
+                                    if valuiIdx > 0 and valuiIdx % 8 == 0:
+                                        pack4HiBits(tc, 0)
+                                        pack4HiBits(tc, 4)
                                     print("pack2")
                                     print(baseValuiIdx)
                                     print(rIdx)
                                     tmpvgprIDx = (valuiIdx % 8) // 4
+
                                     # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                     # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                     numTmpForCVTSubTF32 = 1
