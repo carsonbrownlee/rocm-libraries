@@ -277,6 +277,7 @@ class LocalReadMFMA(LocalRead):
                         packCode = pack.add(Module("packCode"))
 
                     tmpvgprHI = []
+                    tmpvgprFP32 = []
                     # tmpvgprFP32A = []
                     # tmpvgprFP32B = []
                     for rIdx in range(0, numReadsPerUnroll):
@@ -310,9 +311,18 @@ class LocalReadMFMA(LocalRead):
                                     src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
                                     dst0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
                                     dst1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
-                                    if index % 8 == 0:
-                                        packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
-                                        packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
+                                    # if index % 8 == 0:
+                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
+                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
+                                    if index == 0 and tct == "B":
+                                        packCode.add(VMovB64(dst=vgpr("Cvt+0", 2), src=src0))
+                                        packCode.add(VMovB64(dst=vgpr("Cvt+2", 2), src=src1))
+                                    elif index % 8 == 0:
+                                        tmpIdx = len(tmpvgprFP32)
+                                        tmpvgprFP32.append(writer.vgprPool.checkOutAligned(2, 2))
+                                        tmpvgprFP32.append(writer.vgprPool.checkOutAligned(2, 2))
+                                        packCode.add(VMovB64(dst=vgpr(tmpvgprFP32[tmpIdx], 2), src=src0))
+                                        packCode.add(VMovB64(dst=vgpr(tmpvgprFP32[tmpIdx+1], 2), src=src1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3))
 
@@ -385,17 +395,32 @@ class LocalReadMFMA(LocalRead):
                                     #     tmpvgprFP32AB = tmpvgprFP32B
                                     offset = baseValuiIdx
                                     vgprCvtOffset = 0
-                                    if tc == "B":
-                                        vgprCvtOffset = 4
+                                    # if tc == "B":
+                                    #     vgprCvtOffset = 4
                                     # v0 = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
                                     # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
                                     # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx))
                                     # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx))
+                                    # if (valuiIdx % 8) == 0:
+                                    #     v0t = vgpr("Cvt+0+%u+%u"%(valufIdx, vgprCvtOffset))
+                                    #     v1t = vgpr("Cvt+1+%u+%u"%(valufIdx, vgprCvtOffset))
+                                    #     v2t = vgpr("Cvt+2+%u+%u"%(valufIdx, vgprCvtOffset))
+                                    #     v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
                                     if (valuiIdx % 8) == 0:
-                                        v0t = vgpr("Cvt+0+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        v1t = vgpr("Cvt+1+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        v2t = vgpr("Cvt+2+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
+                                        if (valuiIdx == 0) and tc == "B":
+                                            v0t = vgpr("Cvt+0+%u+%u"%(valufIdx, vgprCvtOffset))
+                                            v1t = vgpr("Cvt+1+%u+%u"%(valufIdx, vgprCvtOffset))
+                                            v2t = vgpr("Cvt+2+%u+%u"%(valufIdx, vgprCvtOffset))
+                                            v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
+                                        else:
+                                            tmpIdx = len(tmpvgprFP32) - 2
+                                            print("tmpIdx: %d"%tmpIdx)
+                                            print(len(tmpvgprFP32))
+                                            print(tmpvgprFP32)
+                                            v0t = vgpr(tmpvgprFP32[tmpIdx + 0])
+                                            v1t = vgpr(tmpvgprFP32[tmpIdx] + 1)
+                                            v2t = vgpr(tmpvgprFP32[tmpIdx + 1])
+                                            v3t = vgpr(tmpvgprFP32[tmpIdx + 1] + 1)
                                     else:
                                         v0t = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
                                         v1t = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
@@ -448,10 +473,22 @@ class LocalReadMFMA(LocalRead):
                                         # v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        v0 = vgpr("Cvt+0+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        v1 = vgpr("Cvt+1+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        v2 = vgpr("Cvt+2+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        v3 = vgpr("Cvt+3+%u+%u"%(baseValuiIdx, vgprCvtOffset))
+
+                                        if tc == "B" and baseValuiIdx == 0:
+                                            vgprCvtOffset = 0
+                                            v0 = vgpr("Cvt+0+%u+%u"%(baseValuiIdx, vgprCvtOffset))
+                                            v1 = vgpr("Cvt+1+%u+%u"%(baseValuiIdx, vgprCvtOffset))
+                                            v2 = vgpr("Cvt+2+%u+%u"%(baseValuiIdx, vgprCvtOffset))
+                                            v3 = vgpr("Cvt+3+%u+%u"%(baseValuiIdx, vgprCvtOffset))
+                                        else:
+                                            tmpIdx = min(0, len(tmpvgprFP32) - 2)
+                                            print("lastItr")
+                                            print(tmpIdx)
+                                            print(tmpvgprFP32)
+                                            v0 = vgpr(tmpvgprFP32[tmpIdx + 0])
+                                            v1 = vgpr(tmpvgprFP32[tmpIdx + 0] + 1)
+                                            v2 = vgpr(tmpvgprFP32[tmpIdx + 1])
+                                            v3 = vgpr(tmpvgprFP32[tmpIdx + 1] + 1)
                                         v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tc, bufferIdx, iui, baseValuiIdx))
                                         v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tc, bufferIdx, iui, baseValuiIdx))
                                         v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tc, bufferIdx, iui, baseValuiIdx))
@@ -472,6 +509,8 @@ class LocalReadMFMA(LocalRead):
                                         # packCode.add(VMovB64(dst=valuvgprHI164, src=tmpvgprHI164))
                                         for i in range(len(tmpvgprHI)):
                                             writer.vgprPool.checkIn(tmpvgprHI[i])
+                                        for i in range(len(tmpvgprFP32)):
+                                            writer.vgprPool.checkIn(tmpvgprFP32[i])
                                         # if tc == 'A':
                                         #     for i in range(len(tmpvgprFP32A)):
                                         #         writer.vgprPool.checkIn(tmpvgprFP32A[i])

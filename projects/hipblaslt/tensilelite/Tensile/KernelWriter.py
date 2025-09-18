@@ -954,8 +954,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 24
-          instPerPackB = 24
+          instPerPackA = 26
+          instPerPackB = 26
           # print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -1434,12 +1434,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if kernel["UseF32XEmulation"]:
                 # print("macIterItems: " + str(len(macIterItems)))
                 # print("instPerPackA: " + str(instPerPackA))
-                # numPacks = instPerPackA
+                numPacks = instPerPackA
                 # numPacks = 8
                 # if len(macIterItems) > 11:
                 #   numPacks = 0
                 # else:
-                numPacks = 0
+                # numPacks = 0
                 # else:
                 #   numPacks = instPerPackA * 2 - 4
                 for j in range(numPacks):
@@ -1473,8 +1473,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   break
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
-                # numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
-                numDummy = 0 #Carson Debug:
+                #numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
+                numDummy = 1 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
@@ -4500,9 +4500,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if kernel["UseF32XEmulation"]:
       #align 64 bit
-      vgprIdx = int((vgprIdx + 1) / 2) * 2
+      vgprIdx = ((vgprIdx+1)//2)*2
       self.states.startVgprCvt = vgprIdx
-      vgprIdx += 32 # for vgpr serial id
+      vgprIdx += 4 # for vgpr serial id
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
