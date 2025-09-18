@@ -956,16 +956,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
           instPerPackA = 24
           instPerPackB = 24
-          print("packAItems start: " + str(len(packAItems)))
+          # print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
-            print("packAItems itr: " + str(len(packAItems)))
+            # print("packAItems itr: " + str(len(packAItems)))
             for n in range(instPerPackA):
               if packAItems:
                 packItems.append(packAItems.pop(0))
             for n in range(instPerPackB):
               if packBItems:
                 packItems.append(packBItems.pop(0))
-          print("packAItems end: " + str(len(packAItems)))
+          # print("packAItems end: " + str(len(packAItems)))
         else:
           while packAItems:
             if kernel["ConvertAfterDS"] and kernel["ProblemType"]["DataTypeA"].isAnyFloat8():
@@ -1432,8 +1432,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if not schedulePackConsiderMetadata:
               # Carson Debug
               if kernel["UseF32XEmulation"]:
-                print("macIterItems: " + str(len(macIterItems)))
-                print("instPerPackA: " + str(instPerPackA))
+                # print("macIterItems: " + str(len(macIterItems)))
+                # print("instPerPackA: " + str(instPerPackA))
                 # numPacks = instPerPackA
                 # numPacks = 8
                 # if len(macIterItems) > 11:
