@@ -4402,7 +4402,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #align 64 bit
       vgprIdx = int((vgprIdx + 1) / 2) * 2
       self.states.startVgprCvt = vgprIdx
-      vgprIdx += 16 # for vgpr serial id
+      vgprIdx += 32 # for vgpr serial id
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
