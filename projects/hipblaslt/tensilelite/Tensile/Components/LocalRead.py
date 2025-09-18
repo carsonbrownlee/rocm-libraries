@@ -289,13 +289,13 @@ class LocalReadMFMA(LocalRead):
                         if needPack or numSplitMetadata:
                             if kernel["UseF32XEmulation"]:
                                 # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
-                                print("pack tc valuiIdx " + str(tc) + " " + str(valuiIdx))
+                                # print("pack tc valuiIdx " + str(tc) + " " + str(valuiIdx))
                                 vectorWidthA  = kernel["VectorWidthA"]
                                 vectorWidthB  = kernel["VectorWidthB"]
-                                print(vectorWidthA)
-                                print(vectorWidthB)
-                                print(numVectorsPerTile)
-                                print(numReadsPerVector)
+                                # print(vectorWidthA)
+                                # print(vectorWidthB)
+                                # print(numVectorsPerTile)
+                                # print(numReadsPerVector)
 
                                 def pack4HiBits(tct, index):
                                     valOffset = baseValuiIdx + index
@@ -317,7 +317,7 @@ class LocalReadMFMA(LocalRead):
                                     packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3))
 
                                 if valuiIdx == 0 and tc == 'A':
-                                    print("pack header")
+                                    # print("pack header")
                                     # tmpvgprIDx = 0
                                     for tct in ["A", "B"]:
                                         vw = vectorWidthA
@@ -364,9 +364,9 @@ class LocalReadMFMA(LocalRead):
                                     if valuiIdx > 0 and valuiIdx % 8 == 0:
                                         pack4HiBits(tc, 0)
                                         pack4HiBits(tc, 4)
-                                    print("pack2")
-                                    print(baseValuiIdx)
-                                    print(rIdx)
+                                    # print("pack2")
+                                    # print(baseValuiIdx)
+                                    # print(rIdx)
                                     tmpvgprIDx = (valuiIdx % 8) // 4
 
                                     # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
@@ -439,7 +439,7 @@ class LocalReadMFMA(LocalRead):
                                 #             writer.vgprPool.checkIn(tmpvgprHI[i])
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
-                                        print("pack3")
+                                        # print("pack3")
                                         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx))
