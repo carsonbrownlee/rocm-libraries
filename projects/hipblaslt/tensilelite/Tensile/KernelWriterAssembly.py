@@ -116,6 +116,8 @@ class GlobalReadGprRecord:
   a: GprInfo                       = field(default_factory=GprInfo)
   b: GprInfo                       = field(default_factory=GprInfo)
 
+dbgCounter = 0
+
 ################################################################################
 # Assembly Kernel
 ################################################################################
@@ -6986,7 +6988,9 @@ class KernelWriterAssembly(KernelWriter):
                   src0_0     = vgpr(aStr_base[:-4], vgprPerInputA / 2)
                   src0_1     = vgpr(aStr_base[:-4] + abOffsetStr, vgprPerInputA / 2)
 
-
+                global dbgCounter
+                imod.add(TextBlock("label_mfma_" + str(dbgCounter) + ":\n"))
+                dbgCounter+=1
                 imod.add(MFMAInstruction(instType=InstType.INST_BF16, accType=miOutInstType, variant=variant, mfma1k=mfma_1k, \
                                        acc=self.accVgprReadWriteIndex(kernel, (accStart+accStoreCIdx), (accEnd-accStart+1)), \
                                        a=src0_0, b=src1_0, acc2=self.accVgprReadWriteIndex(kernel, accStart, (accEnd-accStart+1)), neg=neg_flag,\
