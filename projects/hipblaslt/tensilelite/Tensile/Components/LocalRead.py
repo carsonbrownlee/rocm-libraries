@@ -289,7 +289,7 @@ class LocalReadMFMA(LocalRead):
 
                         if needPack or numSplitMetadata:
                             if kernel["UseF32XEmulation"]:
-                                # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+                                packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                 # print("pack tc valuiIdx " + str(tc) + " " + str(valuiIdx))
                                 vectorWidthA  = kernel["VectorWidthA"]
                                 vectorWidthB  = kernel["VectorWidthB"]
@@ -464,6 +464,7 @@ class LocalReadMFMA(LocalRead):
                                 #             writer.vgprPool.checkIn(tmpvgprHI[i])
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
+                                        packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                         # print("pack3")
                                         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx))
@@ -481,10 +482,11 @@ class LocalReadMFMA(LocalRead):
                                             v2 = vgpr("Cvt+2+%u+%u"%(baseValuiIdx, vgprCvtOffset))
                                             v3 = vgpr("Cvt+3+%u+%u"%(baseValuiIdx, vgprCvtOffset))
                                         else:
-                                            tmpIdx = min(0, len(tmpvgprFP32) - 2)
-                                            print("lastItr")
-                                            print(tmpIdx)
+                                            tmpIdx = len(tmpvgprFP32) - 2
+                                            print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx) + " tmpIdx:" + str(tmpIdx))
                                             print(tmpvgprFP32)
+                                            if tmpIdx < 0:
+                                                print("CARSON: ERROR: tmpIdx: " + str(tmpIdx))
                                             v0 = vgpr(tmpvgprFP32[tmpIdx + 0])
                                             v1 = vgpr(tmpvgprFP32[tmpIdx + 0] + 1)
                                             v2 = vgpr(tmpvgprFP32[tmpIdx + 1])

@@ -59,6 +59,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, NamedTuple, Optional,Tuple, Type
 from math import ceil
 
+dbgCounter = 0
+
 # Make const values immutable
 @dataclass(frozen=True)
 class ConstValues():
@@ -953,8 +955,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 26
-          instPerPackB = 26
+          instPerPackA = 32
+          instPerPackB = 32
           # print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -1431,6 +1433,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if not schedulePackConsiderMetadata:
               # Carson Debug
               if kernel["UseF32XEmulation"]:
+                global dbgCounter
+                iterCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+                iterCode.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
+                dbgCounter+=1
                 # print("macIterItems: " + str(len(macIterItems)))
                 # print("instPerPackA: " + str(instPerPackA))
                 numPacks = instPerPackA
@@ -1473,7 +1479,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
                 #numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
-                numDummy = 1 #Carson Debug:
+                numDummy = 2 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
