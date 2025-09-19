@@ -276,7 +276,7 @@ class LocalReadMFMA(LocalRead):
                     if needPack or numSplitMetadata:
                         packCode = pack.add(Module("packCode"))
 
-                    tmpvgprHI = []
+                    # tmpvgprHI = []
                     tmpvgprFP32 = []
                     # tmpvgprFP32A = []
                     # tmpvgprFP32B = []
@@ -464,6 +464,7 @@ class LocalReadMFMA(LocalRead):
                                 #             writer.vgprPool.checkIn(tmpvgprHI[i])
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
+                                        print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
                                         packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                         # print("pack3")
                                         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
@@ -509,8 +510,8 @@ class LocalReadMFMA(LocalRead):
                                         # valuvgprHI164 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx), 2)
                                         # packCode.add(VMovB64(dst=valuvgprHI064, src=tmpvgprHI064))
                                         # packCode.add(VMovB64(dst=valuvgprHI164, src=tmpvgprHI164))
-                                        for i in range(len(tmpvgprHI)):
-                                            writer.vgprPool.checkIn(tmpvgprHI[i])
+                                        # for i in range(len(tmpvgprHI)):
+                                        #     writer.vgprPool.checkIn(tmpvgprHI[i])
                                         for i in range(len(tmpvgprFP32)):
                                             writer.vgprPool.checkIn(tmpvgprFP32[i])
                                         # if tc == 'A':
