@@ -60,6 +60,7 @@ from typing import Dict, List, NamedTuple, Optional,Tuple, Type
 from math import ceil
 
 dbgCounter = 0
+dbgCounter2 = 0
 
 # Make const values immutable
 @dataclass(frozen=True)
@@ -955,8 +956,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 32
-          instPerPackB = 32
+          instPerPackA = 26
+          instPerPackB = 26
           # print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -3175,6 +3176,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if (not kernel["UseDotInstruction"]) and (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0):
         tailLoopInnerUnroll = kernel["InnerUnroll"]
 
+      global dbgCounter
       shiftK = Module()
       for mValue in range(mEnd):
         if mEnd > 1:
@@ -3224,10 +3226,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if mValue < mEnd and mValue % self.states.numReadsIterCoalescedB == 0:
             module.addComment1("local read inc b")
             module.add(self.localReadInc(kernel, iuiParam, tensorParametersB))
+            module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+            module.add(SWaitCnt(vlcnt=0))
+            module.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
+            dbgCounter+=1
         module.add(self._wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
 
+        global dbgCounter2
+        module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+        module.add(SWaitCnt(vlcnt=0))
+        module.add(TextBlock("label_carson2_" + str(dbgCounter2) + ":\n"))
+        dbgCounter2+=1
         module.add(pack[0])
         pack[0] = Module()
+        module.add(TextBlock("label_carson3_" + str(dbgCounter2) + ":\n"))
+        dbgCounter2+=1
 
         if kernel["EnableMatrixInstruction"]:
           # always use vregSetIdx=0 for DirectToVgpr + tail loop
@@ -3235,14 +3248,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
           module.add(self.mfmaIter(kernel, tensorParametersA, tensorParametersB, mValue, tailLoopInnerUnroll, vregSetIdxMFMA, 0, tail = True, unrollIdx = mValue, postShiftK = shiftK))
         else: # mac instruction
           module.add(self.macIter(kernel, tensorParametersA, tensorParametersB, mValue, tailLoopInnerUnroll, True, True))
+        module.add(TextBlock("label_carson3_2_" + str(dbgCounter) + ":\n"))
+        dbgCounter+=1
         if kernel["ProblemType"]["Gradient"] and kernel["ProblemType"]["UseBias"] and (kernel["ProblemType"]["BiasSrc"] == "A" or kernel["ProblemType"]["BiasSrc"] == "B"):
           tP = tensorParametersA if kernel["ProblemType"]["BiasSrc"] == "A" else tensorParametersB
           module.add(self.exclasses.biasSumUnroll.loopSum(self, kernel, tP, 0, tailLoopInnerUnroll))
 
         finalLoop = mValue == mEnd - 1
         module.add(self.closeLoop(kernel, tensorParametersA, tensorParametersB, -1, finalLoop, skipCondJumpCounter=mValue))
+        module.add(TextBlock("label_carson4_" + str(dbgCounter2) + ":\n"))
+        dbgCounter2+=1
       # always emit the skip-tail-loop label
       module.add(self.closeLoop(kernel, tensorParametersA, tensorParametersB, -1, None, emitEndLabelOnly=True))
+      module.add(TextBlock("label_carson5_" + str(dbgCounter) + ":\n"))
+      dbgCounter+=1
 
       # Check in VGPR for VALU
       for item in valuResources:
@@ -3256,6 +3275,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # tail: close
       self.states.inTailLoop = False
+      module.add(TextBlock("label_carson6_" + str(dbgCounter) + ":\n"))
+      dbgCounter+=1
 
       # FIXME: Add back.
       if mEnd == 1:
@@ -3289,6 +3310,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     module.add(self.endSummation(kernel, tensorParametersA, tensorParametersB))
     if not self.states.doShadowInit:
       module.add(self.globalWriteWorkGroupInit(kernel))
+    module.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
+    dbgCounter+=1
 
     ####################################
     # Shift Vector Components
@@ -4404,12 +4427,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           vgprIdx = self.states.m.startVgprValu  \
               + max(self.states.m.numVgprValu + numVgprValuPackMetadata, self.states.m.numVgprG2LAllocated)
 
-    if kernel["UseF32XEmulation"]:
-      #align 64 bit
-      vgprIdx = ((vgprIdx+1)//2)*2
-      self.states.startVgprCvt = vgprIdx
-      vgprIdx += 4 # for vgpr serial id
-
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
     # code
@@ -4507,6 +4524,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # code doesn't have to deal with fragmentation
     self.states.startVgprSerial = vgprIdx
     vgprIdx += 1 # for vgpr serial id
+
+    if kernel["UseF32XEmulation"]:
+      #align 64 bit
+      vgprIdx = ((vgprIdx+1)//2)*2
+      self.states.startVgprCvt = vgprIdx
+      vgprIdx += 4 # for vgpr serial id
 
     self.states.totalVgprs = max(vgprIdx, self.states.c.numVgprValu)
     if self.states.totalVgprs < 0 or self.states.totalVgprs > self.states.regCaps["MaxVgpr"]:
