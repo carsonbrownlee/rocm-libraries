@@ -223,7 +223,7 @@ class StateValues:
   startVgprAddressDbg: int               = -1
   startVgprAlphaTmp: int                 = -1
   startVgprSerial: int                   = -1
-  startVgprCvt: int                      = -1
+  # startVgprCvt: int                      = -1
 
   numSgprSizesSum: int                   = 0
   numSgprSizesFree: int                  = 0
@@ -285,8 +285,9 @@ class StateValues:
   numGlobalReadInsPerMfma: int           = 0
   numLocalWriteModPerMfma: int           = 0
   HHH_WMMA: bool                         = False
-
-  perIterLocalWriteCanSkip: List[int]    = field(init=False)
+  #tmpvgprFP32: List[int]                 = field(init=False) # vgpr storage for localread
+  tmpvgprFP32: List[int]                 = field(init=False) # vgpr storage for localread
+  test: int           = 0
 
   lraTileProperties: Dict[int, LraTileProperties] = field(init=False)
 
@@ -315,6 +316,7 @@ class StateValues:
     self.nonPostLoopSgpr = []
 
     self.preloadGuard = []
+    self.tmpvgprFP32 = []
 
 @dataclass
 class StateVgprs:
@@ -957,8 +959,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 26
-          instPerPackB = 26
+          instPerPackA = 32
+          instPerPackB = 32
           # print("packAItems start: " + str(len(packAItems)))
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -3273,6 +3275,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         tailLoopInnerUnroll = kernel["InnerUnroll"]
 
       global dbgCounter
+      # self.states.tmpvgprFP32 = []
       shiftK = Module()
       for mValue in range(mEnd):
         if mEnd > 1:
@@ -3295,6 +3298,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
               shiftK.add(packCodeA)
             else:
               pack[0].add(packCodeA)
+          while len(self.states.tmpvgprFP32):
+              tmp = self.states.tmpvgprFP32.pop()
+              self.vgprPool.checkIn(tmp)
           if kernel["ProblemType"]["Sparse"] and not kernel["DirectToVgprSparseMetadata"]:
             if mValue*self.states.numIterPerCoalescedReadMetadata < mEnd:
               module.addComment1("local read metadata")
@@ -3309,6 +3315,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
               shiftK.add(packCodeB)
             else:
               pack[0].add(packCodeB)
+          while len(self.states.tmpvgprFP32):
+              tmp = self.states.tmpvgprFP32.pop()
+              self.vgprPool.checkIn(tmp)
           # adjustment for DirectToLds case
           iuiParam = iui + tailLoopInnerUnroll * mValue//self.states.numReadsIterCoalescedA
           if mValue < mEnd and mValue % self.states.numReadsIterCoalescedA == 0:
@@ -3326,6 +3335,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             module.add(SWaitCnt(vlcnt=0))
             module.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
             dbgCounter+=1
+          while len(self.states.tmpvgprFP32):
+              tmp = self.states.tmpvgprFP32.pop()
+              self.vgprPool.checkIn(tmp)
         module.add(self._wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
 
         global dbgCounter2
@@ -3354,6 +3366,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         module.add(self.closeLoop(kernel, tensorParametersA, tensorParametersB, -1, finalLoop, skipCondJumpCounter=mValue))
         module.add(TextBlock("label_carson4_" + str(dbgCounter2) + ":\n"))
         dbgCounter2+=1
+        while len(self.states.tmpvgprFP32):
+            tmp = self.states.tmpvgprFP32.pop()
+            self.vgprPool.checkIn(tmp)
       # always emit the skip-tail-loop label
       module.add(self.closeLoop(kernel, tensorParametersA, tensorParametersB, -1, None, emitEndLabelOnly=True))
       module.add(TextBlock("label_carson5_" + str(dbgCounter) + ":\n"))
@@ -3408,6 +3423,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(self.globalWriteWorkGroupInit(kernel))
     module.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
     dbgCounter+=1
+
+    # print("tmpvgprFP32 after calls:")
+    # print(self.states.tmpvgprFP32)
+    while len(self.states.tmpvgprFP32):
+        tmp = self.states.tmpvgprFP32.pop()
+        self.vgprPool.checkIn(tmp)
 
     ####################################
     # Shift Vector Components
@@ -4625,11 +4646,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.states.startVgprSerial = vgprIdx
     vgprIdx += 1 # for vgpr serial id
 
-    if kernel["UseF32XEmulation"]:
-      #align 64 bit
-      vgprIdx = ((vgprIdx+1)//2)*2
-      self.states.startVgprCvt = vgprIdx
-      vgprIdx += 4 # for vgpr serial id
+    # if kernel["UseF32XEmulation"]:
+    #   #align 64 bit
+    #   vgprIdx = ((vgprIdx+1)//2)*2
+    #   self.states.startVgprCvt = vgprIdx
+    #   vgprIdx += 4 # for vgpr serial id
 
     self.states.totalVgprs = max(vgprIdx, self.states.c.numVgprValu)
     if self.states.totalVgprs < 0 or self.states.totalVgprs > self.states.regCaps["MaxVgpr"]:
