@@ -148,7 +148,7 @@ class LocalReadVALU(LocalRead):
         return imod, pack
 
 
-tmpvgprFP32 = []
+# tmpvgprFP32 = []
 
 class LocalReadMFMA(LocalRead):
     kernel = {"EnableMatrixInstruction": True}
@@ -169,6 +169,7 @@ class LocalReadMFMA(LocalRead):
     """
     def __call__(self, writer, kernel, bufferIdx, iui, epsi, tP):
         imod = Module("LocalReadDo%s_I%s" % (tP["tensorChar"],iui))
+        tmpvgprFP32 = []
 
         tc = tP["tensorChar"]
         if tc == "A":
@@ -280,7 +281,7 @@ class LocalReadMFMA(LocalRead):
                         packCode = pack.add(Module("packCode"))
 
                     # tmpvgprHI = []
-                    global tmpvgprFP32
+                    # global tmpvgprFP32
                     # tmpvgprFP32A = []
                     # tmpvgprFP32B = []
                     for rIdx in range(0, numReadsPerUnroll):
@@ -322,10 +323,18 @@ class LocalReadMFMA(LocalRead):
                                     #     packCode.add(VMovB64(dst=vgpr("Cvt+2", 2), src=src1))
                                     if index % 8 == 0:
                                         tmpIdx = len(tmpvgprFP32)
-                                        tmpvgprFP32.append(writer.vgprPool.checkOutAligned(2, 2))
-                                        tmpvgprFP32.append(writer.vgprPool.checkOutAligned(2, 2))
-                                        packCode.add(VMovB64(dst=vgpr(tmpvgprFP32[tmpIdx], 2), src=src0))
-                                        packCode.add(VMovB64(dst=vgpr(tmpvgprFP32[tmpIdx+1], 2), src=src1))
+                                        overlap = True
+                                        while overlap == True:
+                                            val1 = writer.vgprPool.checkOutAligned(2, 2)
+                                            val2 = writer.vgprPool.checkOutAligned(2, 2)
+                                            overlap = False
+                                            overlap |= val1 in writer.states.tmpvgprFP32
+                                            overlap |= val2 in writer.states.tmpvgprFP32
+                                        tmpvgprFP32.append(val1)
+                                        tmpvgprFP32.append(val2)
+                                        print("val1: %u 2: %u"%(val1, val2))
+                                        packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
+                                        packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3))
 
@@ -418,9 +427,9 @@ class LocalReadMFMA(LocalRead):
                                         #     v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
                                         # else:
                                         tmpIdx = len(tmpvgprFP32) - 2
-                                        print("tmpIdx: %d"%tmpIdx)
-                                        print(len(tmpvgprFP32))
-                                        print(tmpvgprFP32)
+                                        # print("tmpIdx: %d"%tmpIdx)
+                                        # print(len(tmpvgprFP32))
+                                        # print(tmpvgprFP32)
                                         v0t = vgpr(tmpvgprFP32[tmpIdx + 0])
                                         v1t = vgpr(tmpvgprFP32[tmpIdx] + 1)
                                         v2t = vgpr(tmpvgprFP32[tmpIdx + 1])
@@ -468,7 +477,7 @@ class LocalReadMFMA(LocalRead):
                                 #             writer.vgprPool.checkIn(tmpvgprHI[i])
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
-                                        print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
+                                        # print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
                                         packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                         # print("pack3")
                                         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
@@ -489,8 +498,8 @@ class LocalReadMFMA(LocalRead):
                                         # else:
                                         if True:
                                             tmpIdx = len(tmpvgprFP32) - 2
-                                            print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx) + " tmpIdx:" + str(tmpIdx))
-                                            print(tmpvgprFP32)
+                                            # print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx) + " tmpIdx:" + str(tmpIdx))
+                                            # print(tmpvgprFP32)
                                             if tmpIdx < 0:
                                                 print("CARSON: ERROR: tmpIdx: " + str(tmpIdx))
                                             v0 = vgpr(tmpvgprFP32[tmpIdx + 0])
@@ -519,10 +528,10 @@ class LocalReadMFMA(LocalRead):
                                         #     writer.vgprPool.checkIn(tmpvgprHI[i])
                                         # for i in range(len(tmpvgprFP32)):
                                         #     writer.vgprPool.checkIn(tmpvgprFP32[i])
-                                        if (tc == "B"): #Carson: TODO: This assumbes B is second... 
-                                            while len(tmpvgprFP32):
-                                                tmp = tmpvgprFP32.pop()
-                                                writer.vgprPool.checkIn(tmp)
+                                        # if (tc == "B"): #Carson: TODO: This assumbes B is second... 
+                                        #     while len(tmpvgprFP32):
+                                        #         tmp = tmpvgprFP32.pop()
+                                        #         writer.vgprPool.checkIn(tmp)
                                         # if tc == 'A':
                                         #     for i in range(len(tmpvgprFP32A)):
                                         #         writer.vgprPool.checkIn(tmpvgprFP32A[i])
@@ -975,5 +984,10 @@ class LocalReadMFMA(LocalRead):
         # DTV case, do not return local read code. Return pack code only.
         if (tP["isA"] or tP["isB"]) and kernel["DirectToVgpr%s"%tc]:
           imod = Module("LocalReadDo%s_I%s (Empty)" % (tP["tensorChar"],iui))
+        
+        for item in tmpvgprFP32:
+            if item in writer.states.tmpvgprFP32:
+                print("ERROR: found duplicate of vgpr: " + str(item))
+        writer.states.tmpvgprFP32.extend(tmpvgprFP32)
 
         return imod, pack
