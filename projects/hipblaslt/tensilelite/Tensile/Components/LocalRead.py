@@ -172,6 +172,7 @@ class LocalReadMFMA(LocalRead):
         tmpvgprFP32 = []
 
         tc = tP["tensorChar"]
+        print("localreadmfma " + str(tc))
         if tc == "A":
             writer.states.localReadDoCntA += 1
         elif tc == "Metadata":
@@ -281,6 +282,7 @@ class LocalReadMFMA(LocalRead):
                         packCode = pack.add(Module("packCode"))
 
                     # tmpvgprHI = []
+                    tmpvgpr = []
                     # global tmpvgprFP32
                     # tmpvgprFP32A = []
                     # tmpvgprFP32B = []
@@ -322,16 +324,21 @@ class LocalReadMFMA(LocalRead):
                                     #     packCode.add(VMovB64(dst=vgpr("Cvt+0", 2), src=src0))
                                     #     packCode.add(VMovB64(dst=vgpr("Cvt+2", 2), src=src1))
                                     if index % 8 == 0:
-                                        tmpIdx = len(tmpvgprFP32)
+                                        # tmpIdx = len(tmpvgprFP32)
                                         overlap = True
                                         while overlap == True:
                                             val1 = writer.vgprPool.checkOutAligned(2, 2)
                                             val2 = writer.vgprPool.checkOutAligned(2, 2)
                                             overlap = False
-                                            overlap |= val1 in writer.states.tmpvgprFP32
-                                            overlap |= val2 in writer.states.tmpvgprFP32
-                                        tmpvgprFP32.append(val1)
-                                        tmpvgprFP32.append(val2)
+                                            if baseValuiIdx not in writer.states.tmpvgpr:
+                                                writer.states.tmpvgpr[baseValuiIdx] = []
+                                            if tc == "B":
+                                                overlap |= val1 in writer.states.tmpvgpr[baseValuiIdx]
+                                                overlap |= val2 in writer.states.tmpvgpr[baseValuiIdx]
+                                            # overlap |= val1 in writer.states.tmpvgprFP32
+                                            # overlap |= val2 in writer.states.tmpvgprFP32
+                                            tmpvgprFP32.append(val1)
+                                            tmpvgprFP32.append(val2)
                                         print("val1: %u 2: %u"%(val1, val2))
                                         packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
                                         packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
@@ -390,14 +397,23 @@ class LocalReadMFMA(LocalRead):
                                     # print("pack2")
                                     # print(baseValuiIdx)
                                     # print(rIdx)
-                                    tmpvgprIDx = (valuiIdx % 8) // 4
+                                    # tmpvgprIDx = (valuiIdx % 8) // 4
 
                                     # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                     # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                     numTmpForCVTSubTF32 = 1
                                     tmpvgpr =[]
                                     for i in range(numTmpForCVTSubTF32):
-                                        tmpvgpr.append(writer.vgprPool.checkOut(1))
+                                        val = writer.vgprPool.checkOut(1)
+                                        tmpvgpr.append(val)
+                                        if tc == "B":
+                                            while val in writer.states.tmpvgpr[baseValuiIdx]:
+                                                val = writer.vgprPool.checkOut(1)
+                                                tmpvgpr.append(val)
+                                                # tmpvgprFP32.append(val)
+                                        else:
+                                            if not val in writer.states.tmpvgpr[baseValuiIdx]:
+                                                writer.states.tmpvgpr[baseValuiIdx].append(val)
 
                                     # v0 = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
                                     # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
@@ -468,8 +484,11 @@ class LocalReadMFMA(LocalRead):
                                         packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
                                         packCode.add(VMovB32(dst=vgpr(tmpvgpr[0]), src=0))
 
-                                    for i in range(numTmpForCVTSubTF32):
-                                        writer.vgprPool.checkIn(tmpvgpr[i])
+                                    # for i in range(numTmpForCVTSubTF32):
+                                    #     writer.vgprPool.checkIn(tmpvgpr[i])
+                                    for tmp in tmpvgpr:
+                                        writer.vgprPool.checkIn(tmp)
+                                    tmpvgpr = []
 
                                 #Carson Debug
                                 # if rIdx == numReadsPerUnroll - 1: # Last iteration
@@ -529,9 +548,17 @@ class LocalReadMFMA(LocalRead):
                                         # for i in range(len(tmpvgprFP32)):
                                         #     writer.vgprPool.checkIn(tmpvgprFP32[i])
                                         # if (tc == "B"): #Carson: TODO: This assumbes B is second... 
-                                        #     while len(tmpvgprFP32):
-                                        #         tmp = tmpvgprFP32.pop()
-                                        #         writer.vgprPool.checkIn(tmp)
+                                        while len(tmpvgprFP32):
+                                            tmp = tmpvgprFP32.pop()
+                                            writer.vgprPool.checkIn(tmp)
+                                            if tc == "A":
+                                                if baseValuiIdx not in writer.states.tmpvgpr:
+                                                    writer.states.tmpvgpr[baseValuiIdx] = []
+                                                if tmp not in writer.states.tmpvgpr[baseValuiIdx]:
+                                                    writer.states.tmpvgpr[baseValuiIdx].append(tmp)
+                                        if tc == "B":
+                                            if baseValuiIdx in writer.states.tmpvgpr:
+                                                writer.states.tmpvgpr[baseValuiIdx] = []
                                         # if tc == 'A':
                                         #     for i in range(len(tmpvgprFP32A)):
                                         #         writer.vgprPool.checkIn(tmpvgprFP32A[i])
