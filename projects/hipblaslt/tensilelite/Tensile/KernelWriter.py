@@ -2852,7 +2852,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           pack[plrIdx] = Module()
           for espi in range(0, 1):
             for iui in range(0,kernel["InnerUnroll"]):
-              print("carson: numItersPLR")
+              # print("carson: numItersPLR")
               if iui*self.states.numReadsIterCoalescedA < kernel["InnerUnroll"]:
                 module.addComment1("local read prefetch a")
                 localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.states.numIterPerCoalescedReadA, iui*self.states.numReadsIterCoalescedA, espi, tensorParametersA)
@@ -2880,7 +2880,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 module.addComment1("local read inc b")
                 module.add(self.localReadInc(kernel, iui, tensorParametersB))
       module.add(self.closeSumAtLeastUnroll(kernel, tensorParametersA, tensorParametersB, prefetch=True, isOptNLL=False, isNGLL=False))
-    print("carson: 2")
+    # print("carson: 2")
 
     loopCopies = 2 if expand else 1
     isDTV = (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])
@@ -2896,7 +2896,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     module.add(self.openLoop(kernel, tensorParametersA, tensorParametersB, self.states.unrollIdx, beginLabelOnly=False))
 
     if needSecondLoop and kernel["PrefetchGlobalRead"] == 2:
-      print("carson: 2_1")
+      # print("carson: 2_1")
       # force to generate 2 loop bodies (PGR2 only)
       # TODO: unify 2 loop bodies code generation with else case
 
@@ -2919,7 +2919,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(self._loopBody( kernel, tensorParametersA, tensorParametersB, pack, 1, loopCopies, True , grBA=grBA))
     else:
       for lc in range(0, loopCopies):
-        print("carson: 2_2")
+        # print("carson: 2_2")
         # second GR buffer check for DTV
         isDTVGRSecondBuf = True if isDTV and lc == 0 else False
         # loop body code generation
@@ -2930,7 +2930,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.add(SSetRegIMM32B32(dst=HWRegContainer(reg="26", value=[0,2]), src=0x0, comment="enable hardware dependency checking"))
 
     module.addComment1("Before NLL: Check VGPR.checkin for INT8 LW")
-    print("carson: 3")
+    # print("carson: 3")
 
     # swap local write, read again before noLoadLoop if PrefetchGlobalRead and DirectToLds is enabled
     # In DirectToLds enabled case, local write address is necessary for prefetch global read (for m0).
@@ -2956,7 +2956,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           module.add(SSetRegIMM32B32(dst=HWRegContainer(reg="26", value=[0,2]), src=0x0, comment="enable hardware dependency checking"))
         NGLLindex += 1
       module.add(self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=True, pack=pack, NLLindex=NGLLindex, NLLnum=NGLLnum))
-    print("carson: 4")
+    # print("carson: 4")
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     # doShadowInit is required since this pushes up the store SRD initialization before the NLL
@@ -2985,7 +2985,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       module.addComment1("remove stagger offsets")
       module.add(self.removeStagger(kernel, tensorParametersA))
       module.add(self.removeStagger(kernel, tensorParametersB))
-    print("carson: 5")
+    # print("carson: 5")
 
     self.vgprPool.add(self.states.a.startVgprValu , \
         self.states.lastValuAB - self.states.a.startVgprValu, "ValuAB")
@@ -3191,13 +3191,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # self.states.tmpvgprFP32 = []
       shiftK = Module()
       for mValue in range(mEnd):
-        print("carson: localreadouter")
+        # print("carson: localreadouter")
         if mEnd > 1:
           # print tail loop counter if mEnd>1 (means do tail loop unroll)
           module.addComment1("tail loop unroll iter %u"%(mValue))
         pack[0] = Module()
         for iui in range(0, tailLoopInnerUnroll):
-          print("carson: localreaditr")
+          # print("carson: localreaditr")
           # local read buffer id. No prefetch in tail loop case.
           bufIdx = mValue % self.states.numVgprBuffer
           # DTV case, use different bufIdx for all loop iterations
@@ -3227,12 +3227,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
               shiftK.add(packCodeB)
             else:
               pack[0].add(packCodeB)
-          print("postreaddo tmpvgpr: ")
-          print(self.states.tmpvgprFP32)
+          # print("postreaddo tmpvgpr: ")
+          # print(self.states.tmpvgprFP32)
           while len(self.states.tmpvgprFP32):
               tmp = self.states.tmpvgprFP32.pop()
               self.vgprPool.checkIn(tmp)
-          print(self.states.tmpvgpr)
+          # print(self.states.tmpvgpr)
           # adjustment for DirectToLds case
           iuiParam = iui + tailLoopInnerUnroll * mValue//self.states.numReadsIterCoalescedA
           if mValue < mEnd and mValue % self.states.numReadsIterCoalescedA == 0:

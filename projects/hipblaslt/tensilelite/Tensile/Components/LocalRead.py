@@ -172,7 +172,7 @@ class LocalReadMFMA(LocalRead):
         tmpvgprFP32 = []
 
         tc = tP["tensorChar"]
-        print("localreadmfma " + str(tc))
+        # print("localreadmfma " + str(tc))
         if tc == "A":
             writer.states.localReadDoCntA += 1
         elif tc == "Metadata":
@@ -339,7 +339,7 @@ class LocalReadMFMA(LocalRead):
                                             # overlap |= val2 in writer.states.tmpvgprFP32
                                             tmpvgprFP32.append(val1)
                                             tmpvgprFP32.append(val2)
-                                        print("val1: %u 2: %u"%(val1, val2))
+                                        # print("val1: %u 2: %u"%(val1, val2))
                                         packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
                                         packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
@@ -389,7 +389,7 @@ class LocalReadMFMA(LocalRead):
                                 # if valuiIdx % 4 == 0:
                                 #     tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
 
-                                print("itr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
+                                # print("itr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
                                 if valuiIdx % 4 == 0:
                                     if valuiIdx % 8 == 0:
                                         pack4HiBits(tc, 0)
