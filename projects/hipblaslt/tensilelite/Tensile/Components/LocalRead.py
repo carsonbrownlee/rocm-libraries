@@ -295,7 +295,7 @@ class LocalReadMFMA(LocalRead):
 
                         if needPack or numSplitMetadata:
                             if kernel["UseF32XEmulation"]:
-                                packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+                                # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                 # print("pack tc valuiIdx " + str(tc) + " " + str(valuiIdx))
                                 vectorWidthA  = kernel["VectorWidthA"]
                                 vectorWidthB  = kernel["VectorWidthB"]
@@ -343,7 +343,10 @@ class LocalReadMFMA(LocalRead):
                                         packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
                                         packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
                                     packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
-                                    packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3))
+                                    commentStr=""
+                                    if (index % 8 == 4):
+                                        commentStr="__TF32_1_"+tc
+                                    packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3, comment=commentStr))
 
                                 # if valuiIdx == 0 and tc == 'A':
                                 #     # print("pack header")
@@ -497,7 +500,7 @@ class LocalReadMFMA(LocalRead):
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
                                         # print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
-                                        packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+                                        # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                         # print("pack3")
                                         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
                                         # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx))
@@ -536,7 +539,10 @@ class LocalReadMFMA(LocalRead):
                                         packCode.add(VCvtPkF32toBF16(dst=v7, src0=v6, src1=v7, comment="pack tail begin"))
                                         packCode.add(VCvtPkF32toBF16(dst=v6, src0=v4, src1=v5))
                                         packCode.add(VCvtPkF32toBF16(dst=v5, src0=v2, src1=v3))
-                                        packCode.add(VCvtPkF32toBF16(dst=v4, src0=v0, src1=v1, comment="pack tail end"))
+                                        commentStr ="__TF32_2_" + tc + " pack tail end"
+                                        if tc == "B":
+                                            commentStr ="__TF32_2_" + tc + " pack tail end"
+                                        packCode.add(VCvtPkF32toBF16(dst=v4, src0=v0, src1=v1, comment=commentStr))
                                         # tmpvgprHI064  = vgpr(tmpvgprHI[0], 2)
                                         # tmpvgprHI164  = vgpr(tmpvgprHI[1], 2)
                                         # valuvgprHI064 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx), 2)
