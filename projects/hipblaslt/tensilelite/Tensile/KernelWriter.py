@@ -956,21 +956,51 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         scheduleTF32Emu = kernel["UseF32XEmulation"]
         if scheduleTF32Emu:
+          # print("carson: packAItems:")
+          # for item in packAItems:
+          #   print(item)
+          # print("carson: done packAItems:")
+          # print("carson: packBItems:")
+          # for item in packBItems:
+          #   print(item)
+          # print("carson: done packBItems:")
           # 26 is the instruction count for the TF32 emulation sequence in LocalRead.py
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 128
-          instPerPackB = 128
-          # print("packAItems start: " + str(len(packAItems)))
+          instPerPackA = 0
+          instPerPackB = 0
+          # print("carson: packing up AB")
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
-            for n in range(instPerPackA):
-              if packAItems:
-                packItems.append(packAItems.pop(0))
-            for n in range(instPerPackB):
-              if packBItems:
-                packItems.append(packBItems.pop(0))
+            found = False
+            for n in range(128):
+              if packAItems and not found:
+                item = packAItems.pop(0)
+                itemStr = str(item)
+                if "__TF32_1" in itemStr or "__TF32_2" in itemStr:
+                  found = True
+                  # print("carson: found string")
+                # print(item)
+                packItems.append(item)
+            
+            found = False
+            for n in range(128):
+              if packBItems and not found:
+                item = packBItems.pop(0)
+                itemStr = str(item)
+                if "__TF32_1" in itemStr or "__TF32_3" in itemStr:
+                  found = True
+                packItems.append(item)
+          # print("packAItems start: " + str(len(packAItems)))
+          # while packAItems or packBItems:
+          #   # print("packAItems itr: " + str(len(packAItems)))
+          #   for n in range(instPerPackA):
+          #     if packAItems:
+          #       packItems.append(packAItems.pop(0))
+          #   for n in range(instPerPackB):
+          #     if packBItems:
+          #       packItems.append(packBItems.pop(0))
           # print("packAItems end: " + str(len(packAItems)))
         else:
           while packAItems:
@@ -1439,12 +1469,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
               # Carson Debug
               if kernel["UseF32XEmulation"]:
                 global dbgCounter
-                iterCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+                # iterCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                 iterCode.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
                 dbgCounter+=1
                 # print("macIterItems: " + str(len(macIterItems)))
                 # print("instPerPackA: " + str(instPerPackA))
                 numPacks = instPerPackA
+                numPacks = 128
                 # numPacks = 8
                 # if len(macIterItems) > 11:
                 #   numPacks = 0
@@ -1452,10 +1483,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 # numPacks = 0
                 # else:
                 #   numPacks = instPerPackA * 2 - 4
+                # print("carson: packing")
+                found = False
                 for j in range(numPacks):
-                  if packItems:
-                    iterCode.add(packItems.pop(0))
+                  if packItems and not found:
+                    item = packItems.pop(0)
+                    iterCode.add(item)
+                    itemStr = str(item)
+                    # print(itemStr)
+                    if "__TF32_1_B" in itemStr or "__TF32_2_B" in itemStr:
+                      found = True
                     curPackIdx += 1
+                # print("carson: done packing")
               else:
                 # we put 2 pack in each mfma
                 for j in range(instPerPackA):
@@ -1484,7 +1523,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
                 #numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
-                numDummy = 2 #Carson Debug:
+                numDummy = 1 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
@@ -1724,6 +1763,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         ####
         # scheduled mfma
         ####
+        iterCode.add(TextBlock("#Carson:WEEE\n")) # Carson debug
         iterCode.add(macIterItems.pop(0) if macIterItems else Module())
 
         if kernel["StorePriorityOpt"]:
@@ -3246,8 +3286,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if mValue < mEnd and mValue % self.states.numReadsIterCoalescedB == 0:
             module.addComment1("local read inc b")
             module.add(self.localReadInc(kernel, iuiParam, tensorParametersB))
-            module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
-            module.add(SWaitCnt(vlcnt=0))
+            # module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+            # module.add(SWaitCnt(vlcnt=0))
             module.add(TextBlock("label_carson_" + str(dbgCounter) + ":\n"))
             dbgCounter+=1
           while len(self.states.tmpvgprFP32):
@@ -3256,8 +3296,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         module.add(self._wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
 
         global dbgCounter2
-        module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
-        module.add(SWaitCnt(vlcnt=0))
+        # module.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
+        # module.add(SWaitCnt(vlcnt=0))
         module.add(TextBlock("label_carson2_" + str(dbgCounter2) + ":\n"))
         dbgCounter2+=1
         module.add(pack[0])
