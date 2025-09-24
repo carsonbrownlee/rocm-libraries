@@ -968,8 +968,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 0
-          instPerPackB = 0
+          instPerPackA = 26
+          instPerPackB = 26
           # print("carson: packing up AB")
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -989,7 +989,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if packBItems and not found:
                 item = packBItems.pop(0)
                 itemStr = str(item)
-                if "__TF32_1" in itemStr or "__TF32_3" in itemStr:
+                if "__TF32_1" in itemStr or "__TF32_2" in itemStr:
                   found = True
                 packItems.append(item)
           # print("packAItems start: " + str(len(packAItems)))
@@ -1491,7 +1491,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                     iterCode.add(item)
                     itemStr = str(item)
                     # print(itemStr)
-                    if "__TF32_1_B" in itemStr or "__TF32_2_B" in itemStr:
+                    if "__TF32_1_A" in itemStr or "__TF32_2_A" in itemStr:
                       found = True
                     curPackIdx += 1
                 # print("carson: done packing")
@@ -1506,10 +1506,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   if packItems:
                     iterCode.add(packItems.pop(0))
                     curPackIdx += 1
-              for j in range(instPerPackB):
-                if packItems:
-                  iterCode.add(packItems.pop(0))
-                  curPackIdx += 1
+              if kernel["UseF32XEmulation"]:
+                numPacks = 128
+                found = False
+                for j in range(numPacks):
+                  if packItems and not found:
+                    item = packItems.pop(0)
+                    iterCode.add(item)
+                    itemStr = str(item)
+                    # print(itemStr)
+                    if "__TF32_1_B" in itemStr or "__TF32_2_B" in itemStr:
+                      found = True
+                    curPackIdx += 1
+              else:
+                for j in range(instPerPackB):
+                  if packItems:
+                    iterCode.add(packItems.pop(0))
+                    curPackIdx += 1
               # since packed register need to wait 2 quad cycle to finish packing
               # we insert pack instruction if we can, or s_nop
               while curPackIdx < numPack+2:
@@ -1522,8 +1535,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   break
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
-                #numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
-                numDummy = 1 #Carson Debug:
+                numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
+                # numDummy = 1 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
