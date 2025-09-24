@@ -540,8 +540,6 @@ class LocalReadMFMA(LocalRead):
                                         packCode.add(VCvtPkF32toBF16(dst=v6, src0=v4, src1=v5))
                                         packCode.add(VCvtPkF32toBF16(dst=v5, src0=v2, src1=v3))
                                         commentStr ="__TF32_2_" + tc + " pack tail end"
-                                        if tc == "B":
-                                            commentStr ="__TF32_2_" + tc + " pack tail end"
                                         packCode.add(VCvtPkF32toBF16(dst=v4, src0=v0, src1=v1, comment=commentStr))
                                         # tmpvgprHI064  = vgpr(tmpvgprHI[0], 2)
                                         # tmpvgprHI164  = vgpr(tmpvgprHI[1], 2)
