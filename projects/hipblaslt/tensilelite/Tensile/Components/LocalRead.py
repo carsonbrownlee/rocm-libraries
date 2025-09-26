@@ -173,7 +173,7 @@ class LocalReadMFMA(LocalRead):
         tmpvgprForReads = []
 
         tc = tP["tensorChar"]
-        print("localreadmfma " + str(tc))
+        # print("localreadmfma " + str(tc))
         if tc == "A":
             writer.states.localReadDoCntA += 1
         elif tc == "Metadata":
@@ -1004,11 +1004,12 @@ class LocalReadMFMA(LocalRead):
                         LocalReadX = instruction.getInst(highBits)
                         #carson debug
                         comment="carson1 " + str(valuiIdx)
-                        if valuiIdx % 8 == 0:
+                        if kernel["UseF32XEmulation"] and (valuiIdx % 8) < 4:
                             # print("carson2: " + str(tc) + " " + "valuiIdx: "+str(valuiIdx))
                             # print(tmpvgprForReads)
                             # destVgpr = vgpr(tmpvgprForReads[ (valuiIdx // 8)], 4)
-                            destVgpr      = vgpr("Valu%s_T%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx // 2), blockWidth)
+                            index = baseValuiIdx // 2 + rIdx
+                            destVgpr      = vgpr("Valu%s_T%u_I%u+%u"%(tc, bufferIdx, iui, index), blockWidth)
                             # print(destVgpr)
                         localReadCode.add(LocalReadX(dst=destVgpr, src=srcAddr, ds=ds, comment=comment))
                         # TODO - handle vector-load
