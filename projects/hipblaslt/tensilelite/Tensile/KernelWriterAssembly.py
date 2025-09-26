@@ -711,6 +711,7 @@ class KernelWriterAssembly(KernelWriter):
         for bi in range(0,numBiFactor): # buffer indices
           for iui in range(0, kernel["InnerUnroll"]):
             moduleVgprMacroValuA.add(RegSet("v", "vgprValuA_X%u_I%u"%(bi,iui), "vgprValuA_X0_I0_BASE", ri))
+            moduleVgprMacroValuA.add(RegSet("v", "vgprValuA_T%u_I%u"%(bi,iui), self.states.startVgprCvt, ri // 2))
             ri += self.states.a.numVgprValuPerBlock
         ri = 0
         if tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
@@ -752,6 +753,7 @@ class KernelWriterAssembly(KernelWriter):
         for bi in range(0,numBiFactor): # buffer indices
           for iui in range(0, kernel["InnerUnroll"]):
             moduleVgprMacroValuB.add(RegSet("v", "vgprValuB_X%u_I%u"%(bi,iui), "vgprValuB_X0_I0_BASE", ri))
+            moduleVgprMacroValuB.add(RegSet("v", "vgprValuB_T%u_I%u"%(bi,iui), self.states.startVgprCvt + self.states.b.startVgprValu - self.states.startVgpr, ri // 2))
             ri += self.states.b.numVgprValuPerBlock
         ri = 0
         if tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"]:
@@ -763,7 +765,7 @@ class KernelWriterAssembly(KernelWriter):
               for iui in range(0, kernel["InnerUnroll"]):
                 moduleVgprMacroValuBPack.add(RegSet("v", "vgprValuB_X%u_I%u_D%u"%(bi,iui,data), "vgprValuB_X0_I0_D0_PACK", ri))
                 ri += self.states.b.numVgprValuPerBlock
-
+    
     if kernel["ConvertAfterDS"]:
       cvtTemp = max(self.states.a.startVgprValuCvtTemp, self.states.b.startVgprValuCvtTemp)
       if (cvtTemp != -1):
