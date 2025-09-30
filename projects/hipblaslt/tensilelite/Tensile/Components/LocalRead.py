@@ -148,8 +148,6 @@ class LocalReadVALU(LocalRead):
         return imod, pack
 
 
-# tmpvgprFP32 = []
-
 class LocalReadMFMA(LocalRead):
     kernel = {"EnableMatrixInstruction": True}
 
@@ -173,7 +171,6 @@ class LocalReadMFMA(LocalRead):
         tmpvgprForReads = []
 
         tc = tP["tensorChar"]
-        # print("localreadmfma " + str(tc))
         if tc == "A":
             writer.states.localReadDoCntA += 1
         elif tc == "Metadata":
@@ -282,11 +279,7 @@ class LocalReadMFMA(LocalRead):
                     if needPack or numSplitMetadata:
                         packCode = pack.add(Module("packCode"))
 
-                    # tmpvgprHI = []
                     tmpvgpr = []
-                    # global tmpvgprFP32
-                    # tmpvgprFP32A = []
-                    # tmpvgprFP32B = []
                     for rIdx in range(0, numReadsPerUnroll):
                         valuiIdx = int(valufIdx)
                         baseLRVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx), numVgpr)
@@ -296,20 +289,11 @@ class LocalReadMFMA(LocalRead):
 
                         if needPack or numSplitMetadata:
                             if kernel["UseF32XEmulation"]:
-                                # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
                                 # print("pack tc valuiIdx " + str(tc) + " " + str(valuiIdx))
                                 vectorWidthA  = kernel["VectorWidthA"]
-                                vectorWidthB  = kernel["VectorWidthB"]
-                                # print(vectorWidthA)
-                                # print(vectorWidthB)
-                                # print(numVectorsPerTile)
-                                # print(numReadsPerVector)
 
                                 def pack4HiBits(tct, index):
                                     valOffset = baseValuiIdx + index
-                                    # vgprCvtOffset = 0 + index/2 + baseValuiIdx
-                                    # if tct == "B":
-                                    #     vgprCvtOffset = 4 + index/2 + baseValuiIdx
                                     v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset))
                                     v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset))
                                     v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset))
@@ -318,164 +302,76 @@ class LocalReadMFMA(LocalRead):
                                     src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
                                     dst0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
                                     dst1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, baseValuiIdx + index/2))
-                                    # if index % 8 == 0:
-                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
-                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
-                                    # if index == 0 and tct == "B":
-                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+0", 2), src=src0))
-                                    #     packCode.add(VMovB64(dst=vgpr("Cvt+2", 2), src=src1))
                                     if index % 8 == 0:
-                                        # # tmpIdx = len(tmpvgprFP32)
-                                        # overlap = True
-                                        # while overlap == True:
-                                        #     val1 = writer.vgprPool.checkOutAligned(4, 4)
-                                        #     # val2 = writer.vgprPool.checkOutAligned(2, 2)
-                                        #     overlap = False
-                                        #     if baseValuiIdx not in writer.states.tmpvgpr:
-                                        #         writer.states.tmpvgpr[baseValuiIdx] = []
-                                        #     if tc == "B":
-                                        #         overlap |= val1 in writer.states.tmpvgpr[baseValuiIdx]
-                                        #         # overlap |= val2 in writer.states.tmpvgpr[baseValuiIdx]
-                                        #     # overlap |= val1 in writer.states.tmpvgprFP32
-                                        #     # overlap |= val2 in writer.states.tmpvgprFP32
-                                        #     tmpvgprFP32.append(val1)
-                                        #     tmpvgprFP32.append(val1+1)
-                                        #     tmpvgprFP32.append(val1+2)
-                                        #     tmpvgprFP32.append(val1+3)
-                                        #     # tmpvgprFP32.append(val2)
-                                        # tmpvgprForReads.append(val1)
-                                        # print("found val1")
-                                        # print(val1)
-                                        # print(tmpvgprFP32)
-                                        # print(writer.states.tmpvgpr[baseValuiIdx])
-                                        #     # tmpvgprForReads.append(val2)
-                                        # packCode.add(VCvtPkF32toBF16(dst=dst0, src0=vgpr(val1), src1=vgpr(val1+1)))
-                                        # packCode.add(VCvtPkF32toBF16(dst=dst1, src0=vgpr(val1+2), src1=vgpr(val1+3), comment=""))
-                                        # # print("val1: %u 2: %u"%(val1, val2))
-                                        # # packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
-                                        # # packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
-                                        v0 = vgpr("Valu%s_T%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset/2))
-                                        v1 = vgpr("Valu%s_T%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset/2))
-                                        v2 = vgpr("Valu%s_T%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset/2))
-                                        v3 = vgpr("Valu%s_T%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset/2))
-                                    # else:
+                                        if not kernel["UseDirect32XEmulation"]:
+                                            overlap = True
+                                            while overlap == True:
+                                                val1 = writer.vgprPool.checkOutAligned(2, 2)
+                                                val2 = writer.vgprPool.checkOutAligned(2, 2)
+                                                overlap = False
+                                                if baseValuiIdx not in writer.states.tmpvgpr:
+                                                    writer.states.tmpvgpr[baseValuiIdx] = []
+                                                if tc == "B":
+                                                    overlap |= val1 in writer.states.tmpvgpr[baseValuiIdx]
+                                                    overlap |= val2 in writer.states.tmpvgpr[baseValuiIdx]
+                                                tmpvgprFP32.append(val1)
+                                                tmpvgprFP32.append(val2)
+                                            tmpvgprForReads.append(val1)
+                                            print("found val1")
+                                            print(val1)
+                                            print(tmpvgprFP32)
+                                            print(writer.states.tmpvgpr[baseValuiIdx])
+                                                # tmpvgprForReads.append(val2)
+                                            packCode.add(VMovB64(dst=vgpr(val1, 2), src=src0))
+                                            packCode.add(VMovB64(dst=vgpr(val2, 2), src=src1))
+                                        else:
+                                            # # print("val1: %u 2: %u"%(val1, val2))
+                                            v0 = vgpr("Valu%s_T%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset/2))
+                                            v1 = vgpr("Valu%s_T%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset/2))
+                                            v2 = vgpr("Valu%s_T%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset/2))
+                                            v3 = vgpr("Valu%s_T%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset/2))
                                     packCode.add(VCvtPkF32toBF16(dst=dst0, src0=v0, src1=v1))
                                     commentStr = ""
                                     if (index % 8) == 4:
                                         commentStr = "__TF32_1_"+tc
                                     packCode.add(VCvtPkF32toBF16(dst=dst1, src0=v2, src1=v3, comment=commentStr))
 
-                                # if valuiIdx == 0 and tc == 'A':
-                                #     # print("pack header")
-                                #     # tmpvgprIDx = 0
-                                #     for tct in ["A", "B"]:
-                                #         vw = vectorWidthA
-                                #         if tct == "B":
-                                #             vw = vectorWidthB
-                                #         eIdxt = 0
-                                #         pack4HiBits(tct, 0)
-                                #         pack4HiBits(tct, 4)
-                                #         #for eIdxt in range(vw):
-                                #             # carson status: currently failing for values +8-12
-                                #             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #             # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #             # dstfp32 = tmpvgprFP32A
-                                #             # if tct == "B":
-                                #             #     dstfp32 = tmpvgprFP32B
-                                #             # tmpvgprFP32A.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #             # tmpvgprFP32A.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #         # valOffset = baseValuiIdx + 8 * eIdxt
-                                #         # vgprCvtOffset = 0 + 8 * eIdxt
-                                #         # if tct == "B":
-                                #         #     vgprCvtOffset = 4 + 8 * eIdxt
-                                #         # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset))
-                                #         # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tct, bufferIdx, iui, valOffset))
-                                #         # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset))
-                                #         # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tct, bufferIdx, iui, valOffset))
-                                #         # v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tct, bufferIdx, iui, valOffset))
-                                #         # v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tct, bufferIdx, iui, valOffset))
-                                #         # v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tct, bufferIdx, iui, valOffset))
-                                #         # v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tct, bufferIdx, iui, valOffset))
-                                #         # src0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tct, bufferIdx, iui, valOffset), 2)
-                                #         # src1 = vgpr("Valu%s_X%u_I%u+%u+2"%(tct, bufferIdx, iui, valOffset), 2)
-                                #         # packCode.add(VMovB64(dst=vgpr("Cvt+0+" + str(vgprCvtOffset), 2), src=src0))
-                                #         # packCode.add(VMovB64(dst=vgpr("Cvt+2+" + str(vgprCvtOffset), 2), src=src1))
-                                #         # packCode.add(VCvtPkF32toBF16(dst=v0, src0=v0, src1=v1))
-                                #         # packCode.add(VCvtPkF32toBF16(dst=v1, src0=v2, src1=v3))
-                                #         # packCode.add(VCvtPkF32toBF16(dst=v2, src0=v4, src1=v5))
-                                #         # packCode.add(VCvtPkF32toBF16(dst=v3, src0=v6, src1=v7))
-                                # if valuiIdx % 4 == 0:
-                                #     tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-
                                 # print("itr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
                                 if valuiIdx % 4 == 0:
                                     if valuiIdx % 8 == 0:
                                         pack4HiBits(tc, 0)
                                         pack4HiBits(tc, 4)
-                                    # print("pack2")
-                                    # print(baseValuiIdx)
-                                    # print(rIdx)
-                                    # tmpvgprIDx = (valuiIdx % 8) // 4
-
-                                    # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                    # tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
                                     numTmpForCVTSubTF32 = 1
                                     tmpvgpr =[]
                                     for i in range(numTmpForCVTSubTF32):
                                         val = writer.vgprPool.checkOut(1)
                                         tmpvgpr.append(val)
-                                        if not baseValuiIdx in writer.states.tmpvgpr:
-                                            writer.states.tmpvgpr[baseValuiIdx] = []
+                                        if kernel["UseDirect32XEmulation"]:
+                                            if not baseValuiIdx in writer.states.tmpvgpr:
+                                                writer.states.tmpvgpr[baseValuiIdx] = []
                                         if tc == "B":
                                             while val in writer.states.tmpvgpr[baseValuiIdx]:
                                                 val = writer.vgprPool.checkOut(1)
                                                 tmpvgpr.append(val)
-                                                # tmpvgprFP32.append(val)
                                         else:
                                             if not val in writer.states.tmpvgpr[baseValuiIdx]:
                                                 writer.states.tmpvgpr[baseValuiIdx].append(val)
 
-                                    # v0 = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx))
-                                    # tmpvgprFP32AB = tmpvgprFP32A
-                                    # if tc == "B":
-                                    #     tmpvgprFP32AB = tmpvgprFP32B
                                     offset = baseValuiIdx
                                     vgprCvtOffset = 0
-                                    # if tc == "B":
-                                    #     vgprCvtOffset = 4
-                                    # v0 = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx))
-                                    # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx))
-                                    # if (valuiIdx % 8) == 0:
-                                    #     v0t = vgpr("Cvt+0+%u+%u"%(valufIdx, vgprCvtOffset))
-                                    #     v1t = vgpr("Cvt+1+%u+%u"%(valufIdx, vgprCvtOffset))
-                                    #     v2t = vgpr("Cvt+2+%u+%u"%(valufIdx, vgprCvtOffset))
-                                    #     v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
                                     if (valuiIdx % 8) == 0:
-                                        # if (valuiIdx == 0) and tc == "B":
-                                        #     v0t = vgpr("Cvt+0+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        #     v1t = vgpr("Cvt+1+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        #     v2t = vgpr("Cvt+2+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        #     v3t = vgpr("Cvt+3+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        # else:
-                                        tmpIdx = len(tmpvgprFP32) - 4
-                                        # print("tmpIdx: %d"%tmpIdx)
-                                        # print(len(tmpvgprFP32))
-                                        # print(tmpvgprFP32)
-                                        # v0t = vgpr(tmpvgprFP32[tmpIdx])
-                                        # v1t = vgpr(tmpvgprFP32[tmpIdx] + 1)
-                                        # v2t = vgpr(tmpvgprFP32[tmpIdx] + 2)
-                                        # v3t = vgpr(tmpvgprFP32[tmpIdx] + 3)
-                                        v0t = vgpr("Valu%s_T%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx // 2))
-                                        v1t = vgpr("Valu%s_T%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx // 2))
-                                        v2t = vgpr("Valu%s_T%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx // 2))
-                                        v3t = vgpr("Valu%s_T%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx // 2))
+                                        if kernel["UseDirect32XEmulation"]:
+                                            tmpIdx = len(tmpvgprFP32) - 4
+                                            v0t = vgpr("Valu%s_T%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx // 2))
+                                            v1t = vgpr("Valu%s_T%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx // 2))
+                                            v2t = vgpr("Valu%s_T%u_I%u+%u+2"%(tc, bufferIdx, iui, valuiIdx // 2))
+                                            v3t = vgpr("Valu%s_T%u_I%u+%u+3"%(tc, bufferIdx, iui, valuiIdx // 2))
+                                        else:
+                                            tmpIdx = len(tmpvgprFP32) - 2
+                                            v0t = vgpr(tmpvgprFP32[tmpIdx + 0])
+                                            v1t = vgpr(tmpvgprFP32[tmpIdx] + 1)
+                                            v2t = vgpr(tmpvgprFP32[tmpIdx + 1])
+                                            v3t = vgpr(tmpvgprFP32[tmpIdx + 1] + 1)
                                     else:
                                         v0t = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx))
                                         v1t = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, valuiIdx))
@@ -516,123 +412,56 @@ class LocalReadMFMA(LocalRead):
                                         writer.vgprPool.checkIn(tmp)
                                     tmpvgpr = []
 
-                                #Carson Debug
-                                # if rIdx == numReadsPerUnroll - 1: # Last iteration
-                                #         for i in range(len(tmpvgprHI)):
-                                #             writer.vgprPool.checkIn(tmpvgprHI[i])
                                 if rIdx == numReadsPerUnroll - 1: # Last iteration
                                     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
-                                        # print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx))
-                                        # packCode.add(SWaitCnt(dscnt=0, vscnt=0, comment="carson debug"))
-                                        # print("pack3")
-                                        # v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tc, bufferIdx, iui, baseValuiIdx))
-
-                                        # if tc == "B" and baseValuiIdx == 0:
-                                        #     vgprCvtOffset = 0
-                                        #     v0 = vgpr("Cvt+0+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        #     v1 = vgpr("Cvt+1+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        #     v2 = vgpr("Cvt+2+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        #     v3 = vgpr("Cvt+3+%u+%u"%(baseValuiIdx, vgprCvtOffset))
-                                        # else:
-                                        # if True:
-                                        #     tmpIdx = len(tmpvgprFP32) - 2
-                                        #     print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx) + " tmpIdx:" + str(tmpIdx))
-                                        #     # print(tmpvgprFP32)
-                                        #     if tmpIdx < 0:
-                                        #         print("CARSON: ERROR: tmpIdx: " + str(tmpIdx))
-                                        #     v0 = vgpr(tmpvgprFP32[tmpIdx + 0])
-                                        #     v1 = vgpr(tmpvgprFP32[tmpIdx + 0] + 1)
-                                        #     v2 = vgpr(tmpvgprFP32[tmpIdx + 1])
-                                        #     v3 = vgpr(tmpvgprFP32[tmpIdx + 1] + 1)
-                                        v0 = vgpr("Valu%s_T%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx // 2))
-                                        v1 = vgpr("Valu%s_T%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx // 2))
-                                        v2 = vgpr("Valu%s_T%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx // 2))
-                                        v3 = vgpr("Valu%s_T%u_I%u+%u+3"%(tc, bufferIdx, iui, baseValuiIdx // 2))
+                                        if kernel["UseDirect32XEmulation"]:
+                                            v0 = vgpr("Valu%s_T%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx // 2))
+                                            v1 = vgpr("Valu%s_T%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx // 2))
+                                            v2 = vgpr("Valu%s_T%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx // 2))
+                                            v3 = vgpr("Valu%s_T%u_I%u+%u+3"%(tc, bufferIdx, iui, baseValuiIdx // 2))
+                                        else:
+                                            tmpIdx = len(tmpvgprFP32) - 2
+                                            # print("lastItr tc:" + str(tc) + " valuIdx:" + str(valuiIdx) + " tmpIdx:" + str(tmpIdx))
+                                            if tmpIdx < 0:
+                                                print("CARSON: ERROR: tmpIdx: " + str(tmpIdx))
+                                            v0 = vgpr(tmpvgprFP32[tmpIdx + 0])
+                                            v1 = vgpr(tmpvgprFP32[tmpIdx + 0] + 1)
+                                            v2 = vgpr(tmpvgprFP32[tmpIdx + 1])
+                                            v3 = vgpr(tmpvgprFP32[tmpIdx + 1] + 1)
                                         v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tc, bufferIdx, iui, baseValuiIdx))
                                         v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tc, bufferIdx, iui, baseValuiIdx))
                                         v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tc, bufferIdx, iui, baseValuiIdx))
                                         v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tc, bufferIdx, iui, baseValuiIdx))
-                                        # v4 = vgpr("Cvt+4+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        # v5 = vgpr("Cvt+5+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        # v6 = vgpr("Cvt+6+%u+%u"%(valufIdx, vgprCvtOffset))
-                                        # v7 = vgpr("Cvt+7+%u+%u"%(valufIdx, vgprCvtOffset))
                                         packCode.add(VCvtPkF32toBF16(dst=v7, src0=v6, src1=v7, comment="pack tail begin"))
                                         packCode.add(VCvtPkF32toBF16(dst=v6, src0=v4, src1=v5))
                                         packCode.add(VCvtPkF32toBF16(dst=v5, src0=v2, src1=v3))
                                         commentStr ="__TF32_2_" + tc + " pack tail end"
                                         packCode.add(VCvtPkF32toBF16(dst=v4, src0=v0, src1=v1, comment=commentStr))
-                                        # tmpvgprHI064  = vgpr(tmpvgprHI[0], 2)
-                                        # tmpvgprHI164  = vgpr(tmpvgprHI[1], 2)
-                                        # valuvgprHI064 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx), 2)
-                                        # valuvgprHI164 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx), 2)
-                                        # packCode.add(VMovB64(dst=valuvgprHI064, src=tmpvgprHI064))
-                                        # packCode.add(VMovB64(dst=valuvgprHI164, src=tmpvgprHI164))
-                                        # for i in range(len(tmpvgprHI)):
-                                        #     writer.vgprPool.checkIn(tmpvgprHI[i])
-                                        # for i in range(len(tmpvgprFP32)):
-                                        #     writer.vgprPool.checkIn(tmpvgprFP32[i])
-                                        # if (tc == "B"): #Carson: TODO: This assumbes B is second... 
-                                        index = len(tmpvgprFP32) - 1
-                                        # while len(tmpvgprFP32):
-                                        while index >= 0:
-                                            # tmp = tmpvgprFP32.pop()
-                                            # writer.vgprPool.checkIn(tmp)
-                                            tmp = tmpvgprFP32[index]
-                                            index -= 1
+                                        if kernel["UseDirect32XEmulation"]:
+                                            index = len(tmpvgprFP32) - 1
+                                            while index >= 0:
+                                                tmp = tmpvgprFP32[index]
+                                                index -= 1
+                                                if tc == "A":
+                                                    if baseValuiIdx not in writer.states.tmpvgpr:
+                                                        writer.states.tmpvgpr[baseValuiIdx] = []
+                                                    if tmp not in writer.states.tmpvgpr[baseValuiIdx]:
+                                                        writer.states.tmpvgpr[baseValuiIdx].append(tmp)
+                                            if tc == "B":
+                                                if baseValuiIdx in writer.states.tmpvgpr:
+                                                    writer.states.tmpvgpr[baseValuiIdx] = []
+                                        else:
+                                            while len(tmpvgprFP32):
+                                                tmp = tmpvgprFP32.pop()
+                                                writer.vgprPool.checkIn(tmp)
                                             if tc == "A":
                                                 if baseValuiIdx not in writer.states.tmpvgpr:
                                                     writer.states.tmpvgpr[baseValuiIdx] = []
                                                 if tmp not in writer.states.tmpvgpr[baseValuiIdx]:
                                                     writer.states.tmpvgpr[baseValuiIdx].append(tmp)
-                                        if tc == "B":
-                                            if baseValuiIdx in writer.states.tmpvgpr:
-                                                writer.states.tmpvgpr[baseValuiIdx] = []
-                                        # if tc == 'A':
-                                        #     for i in range(len(tmpvgprFP32A)):
-                                        #         writer.vgprPool.checkIn(tmpvgprFP32A[i])
-                                        # else:
-                                        #     for i in range(len(tmpvgprFP32B)):
-                                        #         writer.vgprPool.checkIn(tmpvgprFP32B[i])
-
-                                    # layout:
-                                    # Val+0: bf16 high (0,1)
-                                    # Val+1: bf16 high (2,3)
-                                    # Val+2: bf16 high (4,5)
-                                    # Val+3: bf16 high (6,7)
-                                    # Val+4: bf16 low  (0,1)
-                                    # Val+5: bf16 low  (2,3)
-                                    # Val+6: bf16 low  (4,5)
-                                # if rIdx == 0:#Carson Debug #numReadsPerUnroll - 1: # Last iteration
-                                #     if not (kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16):
-                                #         print("pack3")
-                                #         tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #         tmpvgprHI.append(writer.vgprPool.checkOutAligned(2, 2))
-                                #         v0 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v1 = vgpr("Valu%s_X%u_I%u+%u+1"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v2 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v3 = vgpr("Valu%s_X%u_I%u+%u+3"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v4 = vgpr("Valu%s_X%u_I%u+%u+4"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v5 = vgpr("Valu%s_X%u_I%u+%u+5"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v6 = vgpr("Valu%s_X%u_I%u+%u+6"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         v7 = vgpr("Valu%s_X%u_I%u+%u+7"%(tc, bufferIdx, iui, baseValuiIdx))
-                                #         packCode.add(VCvtPkF32toBF16(dst=v7, src0=v6, src1=v7))
-                                #         packCode.add(VCvtPkF32toBF16(dst=v6, src0=v4, src1=v5))
-                                #         packCode.add(VCvtPkF32toBF16(dst=v5, src0=v2, src1=v3))
-                                #         packCode.add(VCvtPkF32toBF16(dst=v4, src0=v0, src1=v1))
-                                #         tmpvgprHI064  = vgpr(tmpvgprHI[0], 2)
-                                #         tmpvgprHI164  = vgpr(tmpvgprHI[1], 2)
-                                #         valuvgprHI064 = vgpr("Valu%s_X%u_I%u+%u+0"%(tc, bufferIdx, iui, baseValuiIdx), 2)
-                                #         valuvgprHI164 = vgpr("Valu%s_X%u_I%u+%u+2"%(tc, bufferIdx, iui, baseValuiIdx), 2)
-                                #         packCode.add(VMovB64(dst=valuvgprHI064, src=tmpvgprHI064))
-                                #         packCode.add(VMovB64(dst=valuvgprHI164, src=tmpvgprHI164))   # Val+7: bf16 low  (6,7)
-
+                                            elif tc == "B":
+                                                if baseValuiIdx in writer.states.tmpvgpr:
+                                                    writer.states.tmpvgpr[baseValuiIdx] = []
 
                             if kernel["ConvertAfterDS"] and (tP["bpe"] != tP["bpeDS"]):
                                 if tP["bpe"] == 2 and tP["bpeDS"] == 4:
@@ -1002,9 +831,9 @@ class LocalReadMFMA(LocalRead):
                         else:
                             ds = DSModifiers(na=2, offset0=paramList[0], offset1=paramList[1])
                         LocalReadX = instruction.getInst(highBits)
-                        #carson debug
-                        comment="carson1 " + str(valuiIdx)
-                        if kernel["UseF32XEmulation"] and (valuiIdx % 8) < 4:
+                        if kernel["UseF32XEmulation"] and kernel["UseDirect32XEmulation"] and (valuiIdx % 8) < 4:
+                            #carson debug
+                            comment="carson1 " + str(valuiIdx)
                             # print("carson2: " + str(tc) + " " + "valuiIdx: "+str(valuiIdx))
                             # print(tmpvgprForReads)
                             # destVgpr = vgpr(tmpvgprForReads[ (valuiIdx // 8)], 4)
@@ -1063,9 +892,10 @@ class LocalReadMFMA(LocalRead):
         if (tP["isA"] or tP["isB"]) and kernel["enableGLTr%s"%tc]:
             pack = Module("Pack%s_I%s (Empty)" % (tP["tensorChar"],iui))
 
-        while len(tmpvgprFP32):
-            tmp = tmpvgprFP32.pop()
-            writer.vgprPool.checkIn(tmp)
+        if kernel["UseDirect32XEmulation"]:
+            while len(tmpvgprFP32):
+                tmp = tmpvgprFP32.pop()
+                writer.vgprPool.checkIn(tmp)
         
         for item in tmpvgprFP32:
             if item in writer.states.tmpvgprFP32:

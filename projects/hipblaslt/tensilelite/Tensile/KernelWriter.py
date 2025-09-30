@@ -969,8 +969,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           #Carson Debug:
           # instPerPackA = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packAItems)
           # instPerPackB = 24 if kernel["UseDot2F32XEmulation"] else 26 #len(packBItems)
-          instPerPackA = 0
-          instPerPackB = 0
+          if kernel["UseDirect32XEmulation"]:
+            instPerPackA = 0
+            instPerPackB = 0
+          else:
+            instPerPackA = 26
+            instPerPackB = 26
           # print("carson: packing up AB")
           while packAItems or packBItems:
             # print("packAItems itr: " + str(len(packAItems)))
@@ -1536,8 +1540,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   break
               if kernel["UseF32XEmulation"]:
                 # HACK add dummy waits btween swap and mfmas. TODO: improve pack scheduling to avoid this
-                #numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
-                numDummy = 1 #Carson Debug:
+                numDummy = 1 if kernel["MatrixInstM"] == 16 and kernel["MatrixInstK"] == 16 else 2
+                # numDummy = 1 #Carson Debug:
                 for numd in range(numDummy):
                   iterCode.add(SNop(waitState=0, comment="VALU packing writes to be consumed by matrix instruction"))
           else:
@@ -4710,7 +4714,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.states.startVgprSerial = vgprIdx
     vgprIdx += 1 # for vgpr serial id
 
-    if kernel["UseF32XEmulation"]:
+    if kernel["UseF32XEmulation"] and kernel["UseDirect32XEmulation"]:
       #align 64 bit
       vgprIdx = ((vgprIdx+1)//2)*2
       self.states.startVgprCvt = vgprIdx
