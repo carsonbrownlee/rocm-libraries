@@ -82,6 +82,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -306,6 +307,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -531,6 +533,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -755,6 +758,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -979,6 +983,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -1203,6 +1208,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -1427,6 +1433,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -1651,6 +1658,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -1875,6 +1883,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -2099,6 +2108,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -2323,6 +2333,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -2547,6 +2558,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -2771,6 +2783,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -2995,6 +3008,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -3219,6 +3233,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -3443,6 +3458,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -3667,6 +3683,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -3891,6 +3908,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -4115,6 +4133,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -4339,6 +4358,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -4563,6 +4583,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -4787,6 +4808,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -5011,6 +5033,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -5235,6 +5258,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -5459,6 +5483,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -5684,6 +5709,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -5908,6 +5934,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
@@ -6132,6 +6159,7 @@
     ActivationAlt: false
     ActivationFuncCall: false
     ActivationFused: true
+    AdaptiveGemm: 1
     AssertAIGreaterThanEqual: -1
     AssertAILessThanEqual: -1
     AssertFree0ElementMultiple: 1
