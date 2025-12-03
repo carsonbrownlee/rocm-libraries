@@ -294,6 +294,7 @@ def hasCustomSchedule(kernel):
     is16bit = kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()
     is8bit = kernel["ProblemType"]["DataType"].isInt8() or kernel["ProblemType"]["DataType"].is8bitFloat()
     isMixed = kernel["ProblemType"]["DataTypeA"].numBytes() != kernel["ProblemType"]["DataTypeB"].numBytes()
+    isTF32 = kernel["UseF32XEmulation"]
 
     MT0, MT1, DU, PGR, PLR, DTL = kernel["MacroTile0"], kernel["MacroTile1"], kernel["DepthU"], kernel["PrefetchGlobalRead"], kernel["PrefetchLocalRead"], kernel["DirectToLds"]
     GRVWA, GRVWB = kernel["GlobalReadVectorWidthA"], kernel["GlobalReadVectorWidthB"]
@@ -306,6 +307,7 @@ def hasCustomSchedule(kernel):
     is256x256x64DTL  = [MT0, MT1, DU, PGR, PLR, DTL] == [256, 256, 64, 2, 1, True]
     is192x256x64DTL  = [MT0, MT1, DU, PGR, PLR, DTL] == [192, 256, 64, 2, 1, True]
     is256x256x128DTL = [MT0, MT1, DU, PGR, PLR, DTL] == [256, 256, 128, 2, 0, True]
+    is192x256x32DTL  = [MT0, MT1, DU, PGR, PLR, DTL] == [192, 256, 32, 2, 0, True]
 
 
     transA = kernel["ProblemType"]["TransposeA"]
@@ -317,6 +319,64 @@ def hasCustomSchedule(kernel):
     isTN = transA == True and transB == False
 
     # Custom main loop scheduling for 256x256x64 16bit
+    print("isTF32:", isTF32)
+    print("is192x256x32DTL:", is192x256x32DTL)
+    print("PLR:", PLR)
+    print("DTL:", DTL)
+    if isTF32 and is192x256x32DTL and MI == [16, 16, 32, 1] and MIWG == [2, 2]:
+        print("Using custom main loop schedule for TF32 192x256x32 DTL")
+        kernel["MfmaInitCVgprs"] = True
+
+        optSchedule = dict()
+        syncCode = []
+        nglshift = nllshift = 0 # vmcnt shift for ngl and nll
+        print("useLDSTr:", useLDSTr)
+        print("TLDS:", TLDS)
+        if isNN and useLDSTr and TLDS==1:
+            print("Using custom main loop schedule for TF32 192x256x32 DTL NN")
+            # TODO: This schedule can be improved when BC are resolved for MT192
+            # Note: A/B Global read orders are swapped
+            # i.e. GRA contains GR for B
+            kernel["SwapGlobalReadOrder"] = True
+            optSchedule = {
+                'GRIncB': [[0,1,3,4,6,7,9,10,12]],
+                'GRIncA': [[13,15,16,18,19,21,22,24,25]],
+                'LRB0': [[0,0,1,1,3,3,9,12], [4,4,6,6,7,7,10,13]],
+                'LRA0': [[15,15,22,22,25,25,28,28,31,31,34,34,37,37,40,40,43,43,49,49,55,55,58,58],
+                        [16,16,21,21,24,24,27,27,30,30,33,33,36,36,39,39,42,42,48,48,54,54,57,57]],
+                'GRA': [[21,21, 24,24, 27,27, 30,30, 33,33, 51,51,54,54,57,57],
+                        [22,22, 25,25, 28,28, 31,31, 34,34, 52,52,55,55,58,58]],
+                'GRB': [[81,81, 84,84, 87,87, 90,90, 93,93, 96,96],
+                        [82,82, 85,85, 88,88, 91,91, 94,94, 97,97]],
+                'LRSA': [[60]],
+                'LRSB': [[60]],
+                'LWSB': [[61]], # For B
+                'LWSA': [[99]], # For A
+                'LRB1': [[85,85,88,88,91,91,94,97],
+                        [87,87,90,90,93,93,96,96]],
+                'LRA1': [[100,106,109,112,115,118,121,127,130,133,136,139],
+                        [102,108,111,114,117,120,123,129,132,135,138,141]],
+                'LCC': [[142, 142]],
+            }
+            syncCode = [SWaitCnt(dscnt=1, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),
+                        SBarrier(comment=""),
+                        SWaitCnt(dscnt=10, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SWaitCnt(dscnt=8, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SWaitCnt(dscnt=6, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SWaitCnt(dscnt=4, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SWaitCnt(dscnt=2, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SWaitCnt(dscnt=0, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
+                        SBarrier(comment=""),
+                        SWaitCnt(dscnt=-1, vlcnt=9, vscnt=-1, comment="Wait for LRB0 to complete"),
+                        SBarrier(comment=""),
+                        SWaitCnt(dscnt=0, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),]
+            nglshift = nllshift = 14 # vmcnt shift for ngl and nll
+        else:
+            return False, None
+
+        numMfma = 144
+        opt1 = ScheduleInfo(2, numMfma, optSchedule, syncCode, nglshift, nllshift)
+        return True, opt1
     if is256x256x64DTL and is16bit and not isMixed and ([GRVWA, GRVWB, LRVW] == [8,8,8]) and MI == [16,16,32,1] and MIWG == [2,2]:
 
         kernel["MfmaInitCVgprs"] = True

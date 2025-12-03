@@ -1495,6 +1495,8 @@ class Solution(collections.abc.Mapping):
 
     # Check if CMS is available for this solution
     hasCMS,_ = hasCustomSchedule(state)
+    print("UseCustomMainLoopSchedule:", state["UseCustomMainLoopSchedule"])
+    print("hasCMS:", hasCMS)
     state["UseCustomMainLoopSchedule"] = hasCMS
 
     # 0: Normal mode. Hardware applies all of the normal data dependency checks
