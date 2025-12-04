@@ -352,10 +352,6 @@ def hasCustomSchedule(kernel):
                 'LRSB': [[60]],
                 'LWSB': [[61]], # For B
                 'LWSA': [[99]], # For A
-                'LRB1': [[85,85,88,88,91,91,94,97],
-                        [87,87,90,90,93,93,96,96]],
-                'LRA1': [[100,106,109,112,115,118,121,127,130,133,136,139],
-                        [102,108,111,114,117,120,123,129,132,135,138,141]],
                 'LCC': [[142, 142]],
             }
             syncCode = [SWaitCnt(dscnt=1, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),
