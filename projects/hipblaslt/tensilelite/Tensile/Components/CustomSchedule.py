@@ -299,6 +299,9 @@ def customMainLoopSchedule(writer, kernel, tensorParametersA, tensorParametersB,
         print("Carson GRIncA")
         for item in globalReadIncACode:
             print(item)
+        print("Carson GRIncB")
+        for item in globalReadIncBCode:
+            print(item)
         print("Carson LRSA")
         for item in LRSwapA:
             print(item)
@@ -307,6 +310,9 @@ def customMainLoopSchedule(writer, kernel, tensorParametersA, tensorParametersB,
             print(item)
         print("Carson GRA")
         for item in globalReadA:
+            print(item)
+        print("Carson GRB")
+        for item in globalReadB:
             print(item)
         print("Carson LWSA")
         for item in LWSwapA:
@@ -374,14 +380,28 @@ def hasCustomSchedule(kernel):
             # i.e. GRA contains GR for B
             kernel["SwapGlobalReadOrder"] = True
             optSchedule = {
-                # 'SYNC'  : [[-1,72,73,108,49,50,51, 52,53, 56,56, 94]],
+                # s_waitcnt lgkmcnt(1)                               // Wait for LRB0 to complete
+                # s_barrier
+                # s_waitcnt lgkmcnt(10)                              // Wait for LRA0 to complete
+                # s_waitcnt lgkmcnt(8)                               // Wait for LRA0 to complete
+                # s_waitcnt lgkmcnt(6)                               // Wait for LRA0 to complete
+                # s_waitcnt lgkmcnt(4)                               // Wait for LRA0 to complete
+                # s_waitcnt lgkmcnt(2)                               // Wait for LRA0 to complete
+                # s_waitcnt lgkmcnt(0)                               // Wait for LRA0 to complete
+                # s_barrier
+                # s_waitcnt vmcnt(9)                                 // Wait for LRB0 to complete
+                # s_barrier
+                # s_waitcnt lgkmcnt(0)                               // Wait for LRB0 to complete
+                'SYNC'  : [[-1,-1,33,36,39,69,78,87,-1,96,-1,54]],
                 'GRIncA': [[0,1,2,3,4,5,6,7,8]],
-                'GRIncB': [[9,10,11,12,13,14,15,16,17]],
+                'GRIncB': [[4,5,6,7,8,9,10,11,12]],
                 # 'LRB0': [[0,0,1,1,3,3,9,12], [4,4,6,6,7,7,10,13]],
                 # 'LRA0': [[15,15,22,22,25,25,28,28,31,31,34,34,37,37,40,40,43,43,49,49,55,55,58,58],
                 #         [16,16,21,21,24,24,27,27,30,30,33,33,36,36,39,39,42,42,48,48,54,54,57,57]],
-                'LRA0': [[35,35,35,35,35,35,35,35,38,38,38,38,38,38,38,38,41,41,41,41,41,41,41,41]],
-                'LRB0': [[71,71,80,80,89,89,98,98]],
+                # 'LRA0': [[35,35,35,35,35,35,35,35,38,38,38,38,38,38,38,38,41,41,41,41,41,41,41,41]],
+                'LRA0': [[32,32,32,32,32,32,32,32,35,35,35,35,35,35,35,35,38,38,38,38,38,38,38,38]],
+                # 'LRB0': [[71,71,80,80,89,89,98,98]],
+                'LRB0': [[68,68,77,77,86,86,95,95]],
                 'PackA0' : [[35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
                              38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38,
                              41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
@@ -391,6 +411,7 @@ def hasCustomSchedule(kernel):
                              89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89,
                              98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98,
                              ]],
+                #Carson: GRA and GRB appear to have contents incorrectly swapped
                 'GRA': [[21,21, 24,24, 27,27, 30,30, 33,33, 51,51,54,54,57,57],
                         [22,22, 25,25, 28,28, 31,31, 34,34, 52,52,55,55,58,58]],
                 'GRB': [[81,81, 84,84, 87,87, 90,90, 93,93, 96,96],
@@ -400,8 +421,10 @@ def hasCustomSchedule(kernel):
                 'LWSB': [[70]], # For B
                 'LWSA': [[34]], # For A
                 'LCC': [[143, 143]],
-                'LRA3': [[-1,-1,-1,-1,-1,-1,-1,-1,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5]],
-                'LRB3': [[-1,-1,2,2,5,5,8,8]],
+                #'LRA3': [[-1,-1,-1,-1,-1,-1,-1,-1,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5]],
+                'LRA3': [[143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143,143]],
+                #'LRB3': [[-1,-1,2,2,5,5,8,8]],
+                'LRB3': [[143,143,143,143,143,143,143,143]],
                 # 'LRA3': [[-1,-1,-1,-1,25,25,28,28,31,31,34,34,37,37,40,40,43,43,49,49,55,55,58,58],
                 #         [0,16,21,21,24,24,27,27,30,30,33,33,36,36,39,39,42,42,48,48,54,54,57,57]],
                 'PackA3' : [[-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
