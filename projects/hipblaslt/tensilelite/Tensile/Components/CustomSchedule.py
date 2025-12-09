@@ -276,47 +276,6 @@ def customMainLoopSchedule(writer, kernel, tensorParametersA, tensorParametersB,
 
                 if codepath == numCodePath - 1:
                     macro.add(ValueEndif(comment="EndIf \\ID checks"))
-    
-
-    print("Carson CMS Itrs:", numLoopIter)
-    for uIdx in range(0, numLoopIter):
-        print("Carson uIdx:", uIdx)
-        print("Carson LRCodeA")
-        for item in LRCodeA[uIdx]:
-            print(item)
-        print("Carson LRCodeB")
-        for item in LRCodeB[uIdx]:
-            print(item)
-        print("Carson PackCodeA")
-        for item in PackCodeA[uIdx]:
-            print(item)
-        print("Carson PackCodeB")
-        for item in PackCodeB[uIdx]:
-            print(item)
-        print("Carson SyncCode")
-        for item in opt1.syncCode:
-            print(item)
-        print("Carson GRIncA")
-        for item in globalReadIncACode:
-            print(item)
-        print("Carson GRIncB")
-        for item in globalReadIncBCode:
-            print(item)
-        print("Carson LRSA")
-        for item in LRSwapA:
-            print(item)
-        print("Carson LRSB")
-        for item in LRSwapB:
-            print(item)
-        print("Carson GRA")
-        for item in globalReadA:
-            print(item)
-        print("Carson GRB")
-        for item in globalReadB:
-            print(item)
-        print("Carson LWSA")
-        for item in LWSwapA:
-            print(item)
 
     module.add(macro)
     return module, numCodePath
@@ -359,23 +318,14 @@ def hasCustomSchedule(kernel):
     isTT = transA == True and transB == True
     isTN = transA == True and transB == False
 
-    # Custom main loop scheduling for 256x256x64 16bit
-    print("isTF32:", isTF32)
-    print("is192x256x32DTL:", is192x256x32DTL)
-    print("PLR:", PLR)
-    print("DTL:", DTL)
+    # Custom main loop scheduling for 192x256x32 TF32
     if isTF32 and is192x256x32DTL and MI == [16, 16, 32, 1] and MIWG == [2, 2]:
-        print("Using custom main loop schedule for TF32 192x256x32 DTL")
         kernel["MfmaInitCVgprs"] = True
 
         optSchedule = dict()
         syncCode = []
         nglshift = nllshift = 0 # vmcnt shift for ngl and nll
-        print("useLDSTr:", useLDSTr)
-        print("TLDS:", TLDS)
         if isNN and useLDSTr and TLDS==1:
-            print("Using custom main loop schedule for TF32 192x256x32 DTL NN")
-            # TODO: This schedule can be improved when BC are resolved for MT192
             # Note: A/B Global read orders are swapped
             # i.e. GRA contains GR for B
             kernel["SwapGlobalReadOrder"] = True
@@ -391,69 +341,18 @@ def hasCustomSchedule(kernel):
                         SWaitCnt(dscnt=0, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),]
             optSchedule = {
                 'SYNC'  : [[-1,5,34,36,71,71,72,107,107,107]],
-                # 'SYNC'  : [[-1,-1,6,35,36,71,72,71,-1,108,108,108]],
-                # 'SYNC'  : [[-1,-1,6,35,36,71,78,87,-1,108,108,108]],
-                # 'SYNC'  : [[-1,-1,33,36,39,69,78,87,-1,96,-1,54]],
-# s_cmp_eq_u32 s[sgprLoopCounterL], s[sgprStaggerUIter] // Is this the wrapIter?
-# s_cselect_b32 s60, s[sgprWrapUA+0], s[sgprGlobalReadIncsA+0] // incLower <- ?
-# s_cselect_b32 s61, s[sgprWrapUA+1], 0              // incUpper <- ?
-# s_add_u32 s[sgprSrdA+0], s[sgprSrdA+0], s60        // gra SRD += inc(lower)
-# s_addc_u32 s[sgprSrdA+1], s[sgprSrdA+1], s61       // gra SRD += inc(upper)
-# s_sub_u32 s[sgprShadowLimitA+0], s[sgprShadowLimitA+0], s60 // limit -= inc)
-# s_subb_u32 s[sgprShadowLimitA+1], s[sgprShadowLimitA+1], s61 // limit -= inc)
-# s_cmp_eq_u32 s[sgprShadowLimitA+1], 0              // are we within 2^32?
-# s_cselect_b32 s[sgprSrdA+2], s[sgprShadowLimitA+0], BufferLimit // Move shadow to real if we are within 2^32
                 'GRIncA': [[1,1,1,2,2,2,3,3,3]],
-# s_cmp_eq_u32 s[sgprLoopCounterL], s[sgprStaggerUIter] // Is this the wrapIter?
-# s_cselect_b32 s60, s[sgprWrapUB+0], s[sgprGlobalReadIncsB+0] // incLower <- ?
-# s_cselect_b32 s61, s[sgprWrapUB+1], 0              // incUpper <- ?
-# s_add_u32 s[sgprSrdB+0], s[sgprSrdB+0], s60        // gra SRD += inc(lower)
-# s_addc_u32 s[sgprSrdB+1], s[sgprSrdB+1], s61       // gra SRD += inc(upper)
-# s_sub_u32 s[sgprShadowLimitB+0], s[sgprShadowLimitB+0], s60 // limit -= inc)
-# s_subb_u32 s[sgprShadowLimitB+1], s[sgprShadowLimitB+1], s61 // limit -= inc)
-# s_cmp_eq_u32 s[sgprShadowLimitB+1], 0              // are we within 2^32?
-# s_cselect_b32 s[sgprSrdB+2], s[sgprShadowLimitB+0], BufferLimit // Move shadow to real if we are within 2^32
                 'GRIncB': [[4,4,4,5,5,5,6,6,6]],
-                # 'LRB0': [[0,0,1,1,3,3,9,12], [4,4,6,6,7,7,10,13]],
-                # 'LRA0': [[15,15,22,22,25,25,28,28,31,31,34,34,37,37,40,40,43,43,49,49,55,55,58,58],
-                #         [16,16,21,21,24,24,27,27,30,30,33,33,36,36,39,39,42,42,48,48,54,54,57,57]],
-                # 'LRA0': [[35,35,35,35,35,35,35,35,38,38,38,38,38,38,38,38,41,41,41,41,41,41,41,41]],
-# ds_read_b32 v[vgprValuA_T0_I0+12], v[vgprLocalReadAddrA] offset:260 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+13], v[vgprLocalReadAddrA] offset:1028 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+14], v[vgprLocalReadAddrA] offset:1796 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+15], v[vgprLocalReadAddrA] offset:2564 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+28], v[vgprLocalReadAddrA] offset:12548 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+29], v[vgprLocalReadAddrA] offset:13316 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+30], v[vgprLocalReadAddrA] offset:14084 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+31], v[vgprLocalReadAddrA] offset:14852 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=1 rIdx=7 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+16], v[vgprLocalReadAddrA] offset:512 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+17], v[vgprLocalReadAddrA] offset:1280 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+18], v[vgprLocalReadAddrA] offset:2048 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+19], v[vgprLocalReadAddrA] offset:2816 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+36], v[vgprLocalReadAddrA] offset:12800 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+37], v[vgprLocalReadAddrA] offset:13568 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+38], v[vgprLocalReadAddrA] offset:14336 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+39], v[vgprLocalReadAddrA] offset:15104 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=0 rIdx=7 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+20], v[vgprLocalReadAddrA] offset:516 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+21], v[vgprLocalReadAddrA] offset:1284 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+22], v[vgprLocalReadAddrA] offset:2052 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+23], v[vgprLocalReadAddrA] offset:2820 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+44], v[vgprLocalReadAddrA] offset:12804 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+45], v[vgprLocalReadAddrA] offset:13572 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+46], v[vgprLocalReadAddrA] offset:14340 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+47], v[vgprLocalReadAddrA] offset:15108 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=2 eIdx=1 rIdx=7 oIdx=0 buffer=0 iui=0
-                # 'LRA0': [[32,32,32,32,32,32,32,32,35,35,35,35,35,35,35,35,38,38,38,38,38,38,38,38]],
+                # LDS reads into first 4 vgprs of Valu!_X!_I!+offset, then next four into Valu!_T!_I!+offset
+                #  in order to avoid copies in the cvt code
                 'LRA0': [[1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12]],
-                # 'LRB0': [[71,71,80,80,89,89,98,98]],
-# ds_read_b128 v[vgprValuB_T0_I0+16:vgprValuB_T0_I0+16+3], v[vgprLocalReadAddrB] offset:16896 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_X0_I0+36:vgprValuB_X0_I0+36+3], v[vgprLocalReadAddrB] offset:16960 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=0 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_T0_I0+20:vgprValuB_T0_I0+20+3], v[vgprLocalReadAddrB] offset:17024 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_X0_I0+44:vgprValuB_X0_I0+44+3], v[vgprLocalReadAddrB] offset:17088 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=1 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_T0_I0+24:vgprValuB_T0_I0+24+3], v[vgprLocalReadAddrB] offset:17152 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_X0_I0+52:vgprValuB_X0_I0+52+3], v[vgprLocalReadAddrB] offset:17216 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=2 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_T0_I0+28:vgprValuB_T0_I0+28+3], v[vgprLocalReadAddrB] offset:17280 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=3 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b128 v[vgprValuB_X0_I0+60:vgprValuB_X0_I0+60+3], v[vgprLocalReadAddrB] offset:17344 // L -> Reg lro=0 swapByteOffset=0 ti=128 vIdx=1 eIdx=3 rIdx=1 oIdx=0 buffer=0 iui=0
                 'LRB0': [[13,14,15,16,17,18,19,20]],
+                # Pack code contains cvt ops for converting fp32 to bf16. A and B cvt ops are identical.
+                # There are 24 ops per block of 3 mfmas.
+                # This example puts all cvt ops for one mfma in a single block, but they should be split up
+                # There are 3 BF16 MFMAs, with an ordering of: mfma(AHigh, BHigh), mfma(AHigh, BLow), mfma(ALow, BHigh)
+                # The first mfma in each block of 3 then only needs the first 4 ops from A and B, and the second mfma
+                # needs all cvt ops only for A. The third needs all cvt ops for the block.
                 'PackA0' : [[35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
                              38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38,
                              41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
@@ -463,77 +362,16 @@ def hasCustomSchedule(kernel):
                              89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89, 89,
                              98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98,
                              ]],
-# s_mov_b32 m0, s[sgprLocalWriteAddrB]               // m0 <- LDS write address
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_0_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+1], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_1_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+2], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_2_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+3], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_3_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+4], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_4_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+5], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_5_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+6], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_6_0
-# s_add_u32 m0, m0, 4224                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetB+7], s[sgprSrdB:sgprSrdB+3], 0 offen offset:0 lds // G -> Reg 0_0_7_0
-                #Carson: GRA and GRB appear to have contents incorrectly swapped
+                #Carson: GRA and GRB appear to have contents confusingly swapped
                 'GRA': [[72,72, 72,72, 72,72, 72,72, 72,72, 72,72, 72,72, 72,72]],
-# s_mov_b32 m0, s[sgprLocalWriteAddrA]               // m0 <- LDS write address
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_0_0
-# s_add_u32 m0, m0, 4096                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+1], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_1_0
-# s_add_u32 m0, m0, 4096                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+2], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_2_0
-# s_add_u32 m0, m0, 4096                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+3], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_3_0
-# s_add_u32 m0, m0, 4096                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+4], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_4_0
-# s_add_u32 m0, m0, 4096                             // Move LDS write address to next line
-# buffer_load_dwordx4 v[vgprGlobalReadOffsetA+5], s[sgprSrdA:sgprSrdA+3], 0 offen offset:0 lds // G -> Reg 0_0_5_0
                 'GRB': [[72,72, 72,72, 72,72, 72,72, 72,72, 72,72]],
-                # Carson LRSA
-                # v_xor_b32 v[vgprLocalReadAddrA], 0x10000, v[vgprLocalReadAddrA] // swap Red Blk
                 'LRSA': [[35]],
-                # Carson LRSB
-                # v_xor_b32 v[vgprLocalReadAddrB], 0x10000, v[vgprLocalReadAddrB] // swap Red Blk
                 'LRSB': [[35]],
-                #s_xor_b32 s[sgprLocalWriteAddrA], 0x10000, s[sgprLocalWriteAddrA] // swap Red Blk SGPR
-                'LWSA': [[107]], # For A
-                'LWSB': [[107]], # For B
+                'LWSA': [[107]],
+                'LWSB': [[107]],
                 'LCC': [[143, 143]],
-# ds_read_b32 v[vgprValuA_T0_I0+0], v[vgprLocalReadAddrA] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+1], v[vgprLocalReadAddrA] offset:768 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+2], v[vgprLocalReadAddrA] offset:1536 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+3], v[vgprLocalReadAddrA] offset:2304 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+4], v[vgprLocalReadAddrA] offset:12288 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+5], v[vgprLocalReadAddrA] offset:13056 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+6], v[vgprLocalReadAddrA] offset:13824 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+7], v[vgprLocalReadAddrA] offset:14592 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=0 rIdx=7 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+4], v[vgprLocalReadAddrA] offset:4 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+5], v[vgprLocalReadAddrA] offset:772 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+6], v[vgprLocalReadAddrA] offset:1540 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+7], v[vgprLocalReadAddrA] offset:2308 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+12], v[vgprLocalReadAddrA] offset:12292 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+13], v[vgprLocalReadAddrA] offset:13060 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+14], v[vgprLocalReadAddrA] offset:13828 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+15], v[vgprLocalReadAddrA] offset:14596 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=0 eIdx=1 rIdx=7 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+8], v[vgprLocalReadAddrA] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+9], v[vgprLocalReadAddrA] offset:1024 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=1 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+10], v[vgprLocalReadAddrA] offset:1792 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=2 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_T0_I0+11], v[vgprLocalReadAddrA] offset:2560 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=3 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+20], v[vgprLocalReadAddrA] offset:12544 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=4 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+21], v[vgprLocalReadAddrA] offset:13312 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=5 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+22], v[vgprLocalReadAddrA] offset:14080 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=6 oIdx=0 buffer=0 iui=0
-# ds_read_b32 v[vgprValuA_X0_I0+23], v[vgprLocalReadAddrA] offset:14848 // L -> Reg lro=0 swapByteOffset=0 ti=64 vIdx=1 eIdx=0 rIdx=7 oIdx=0 buffer=0 iui=0
-                #'LRA3': [[-1,-1,-1,-1,-1,-1,-1,-1,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5]],
                 'LRA3': [[109,109,110,110,111,111,112,112,115,115,116,116,117,117,118,118,119,119,120,120,121,121,122,122]],
-                #'LRB3': [[-1,-1,2,2,5,5,8,8]],
                 'LRB3': [[113,114,123,124,125,126,127,128]],
-                # 'LRA3': [[-1,-1,-1,-1,25,25,28,28,31,31,34,34,37,37,40,40,43,43,49,49,55,55,58,58],
-                #         [0,16,21,21,24,24,27,27,30,30,33,33,36,36,39,39,42,42,48,48,54,54,57,57]],
                 'PackA3' : [[-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
                              2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                              5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -544,18 +382,6 @@ def hasCustomSchedule(kernel):
                              8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
                              ]],
             }
-            # syncCode = [SWaitCnt(dscnt=1, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),
-            #             SBarrier(comment=""),
-            #             SWaitCnt(dscnt=10, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SWaitCnt(dscnt=8, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SWaitCnt(dscnt=6, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SWaitCnt(dscnt=4, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SWaitCnt(dscnt=2, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SWaitCnt(dscnt=0, vlcnt=-1, vscnt=-1, comment="Wait for LRA0 to complete"),
-            #             SBarrier(comment=""),
-            #             SWaitCnt(dscnt=-1, vlcnt=9, vscnt=-1, comment="Wait for LRB0 to complete"),
-            #             SBarrier(comment=""),
-            #             SWaitCnt(dscnt=0, vlcnt=-1, vscnt=-1, comment="Wait for LRB0 to complete"),]
             nglshift = nllshift = 14 # vmcnt shift for ngl and nll
         else:
             return False, None
